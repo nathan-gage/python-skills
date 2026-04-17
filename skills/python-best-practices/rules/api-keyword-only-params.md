@@ -3,6 +3,7 @@ title: Use Keyword-Only Parameters for Optional Config
 impact: HIGH
 impactDescription: prevents breakage when adding or reordering params
 tags: api, parameters, keyword-only, compatibility
+references: https://docs.python.org/3/library/dataclasses.html#dataclasses.KW_ONLY, https://peps.python.org/pep-3102/
 ---
 
 ## Use Keyword-Only Parameters for Optional Config

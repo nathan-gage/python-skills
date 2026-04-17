@@ -3,6 +3,7 @@ title: Order Required Fields Before Optional Fields
 impact: HIGH
 impactDescription: Python enforces this at class-definition time
 tags: api, dataclasses, defaults
+references: https://docs.python.org/3/library/dataclasses.html#dataclasses.dataclass, https://docs.python.org/3/library/dataclasses.html#dataclasses.KW_ONLY
 ---
 
 ## Order Required Fields Before Optional Fields

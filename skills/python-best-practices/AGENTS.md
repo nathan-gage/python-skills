@@ -1,6 +1,6 @@
 # Python Best Practices
 
-**Version 1.0.0**
+**Version 1.1.0**
 Python Best Practices
 April 2026
 
@@ -14,7 +14,7 @@ April 2026
 
 ## Abstract
 
-Comprehensive Python software engineering guidelines designed for AI agents. Contains 50+ rules across 8 categories, prioritized by impact from critical (data modeling, type safety) to low (import hygiene). Each rule names the failure mode agents tend toward, shows incorrect and correct code, and explains the payoff. Rules are derived from real PR review patterns and production experience.
+Comprehensive Python software engineering guidelines designed for AI agents. 60+ rules across 8 categories, prioritized by impact from critical (data modeling, type safety) to low (import hygiene). Each rule names the failure mode agents tend toward, shows incorrect and correct code, cites primary-source references where the rule depends on language or library behavior, and explains the payoff. Rules assume Python 3.11+ as a baseline; rules that depend on a higher version (e.g., 3.13 for warnings.deprecated) are tagged accordingly.
 
 ---
 
@@ -25,47 +25,54 @@ Comprehensive Python software engineering guidelines designed for AI agents. Con
    - 1.2 [Create Explicit Variants Instead of Mode Flags](#12-create-explicit-variants-instead-of-mode-flags)
    - 1.3 [Delete Dead Variants](#13-delete-dead-variants)
    - 1.4 [Derive, Don't Store](#14-derive-dont-store)
-   - 1.5 [Encapsulate Mutable State in the Smallest Possible Scope](#15-encapsulate-mutable-state-in-the-smallest-possible-scope)
-   - 1.6 [Phase Related Optional Fields Into Nested Structs](#16-phase-related-optional-fields-into-nested-structs)
-   - 1.7 [Pick a Mutation Contract](#17-pick-a-mutation-contract)
-   - 1.8 [Use Discriminated Unions Over Optional Bags](#18-use-discriminated-unions-over-optional-bags)
+   - 1.5 [Encapsulate Mutable State in the Narrowest Clear Scope](#15-encapsulate-mutable-state-in-the-narrowest-clear-scope)
+   - 1.6 [Never Use Mutable Default Arguments](#16-never-use-mutable-default-arguments)
+   - 1.7 [Phase Related Optional Fields Into Nested Structs](#17-phase-related-optional-fields-into-nested-structs)
+   - 1.8 [Pick a Mutation Contract](#18-pick-a-mutation-contract)
+   - 1.9 [Use Discriminated Unions Over Optional Bags](#19-use-discriminated-unions-over-optional-bags)
+   - 1.10 [Use Timezone-Aware Datetimes at Boundaries](#110-use-timezone-aware-datetimes-at-boundaries)
+   - 1.11 [Use a Sentinel Object When None Is a Real Domain Value](#111-use-a-sentinel-object-when-none-is-a-real-domain-value)
 2. [Type Safety](#2-type-safety) — **CRITICAL**
    - 2.1 [Avoid Any Annotations](#21-avoid-any-annotations)
    - 2.2 [Fix Type Definitions Instead of cast()](#22-fix-type-definitions-instead-of-cast)
    - 2.3 [Fix Type Errors, Don't Ignore Them](#23-fix-type-errors-dont-ignore-them)
    - 2.4 [Narrow Type Signatures to Runtime Reality](#24-narrow-type-signatures-to-runtime-reality)
-   - 2.5 [Remove Redundant Optional Annotations](#25-remove-redundant-optional-annotations)
+   - 2.5 [Remove Redundant `| None` When Values Are Guaranteed](#25-remove-redundant-none-when-values-are-guaranteed)
    - 2.6 [Trust the Type Checker — Remove Redundant Runtime Checks](#26-trust-the-type-checker-remove-redundant-runtime-checks)
    - 2.7 [Use Literal Types for Fixed String Sets](#27-use-literal-types-for-fixed-string-sets)
    - 2.8 [Use TYPE_CHECKING for Optional Dependencies](#28-use-typechecking-for-optional-dependencies)
    - 2.9 [Use TypedDict or Dataclass Instead of dict[str, Any]](#29-use-typeddict-or-dataclass-instead-of-dictstr-any)
    - 2.10 [Use isinstance() for Type Checking, Not hasattr/getattr](#210-use-isinstance-for-type-checking-not-hasattrgetattr)
 3. [API Design](#3-api-design) — **HIGH**
-   - 3.1 [Don't Access Private Attributes](#31-dont-access-private-attributes)
-   - 3.2 [Instance Methods for State, Module Functions for Pure Logic](#32-instance-methods-for-state-module-functions-for-pure-logic)
-   - 3.3 [Keep Data Models Flat and Non-Redundant](#33-keep-data-models-flat-and-non-redundant)
-   - 3.4 [Keep Old Names as Deprecated Aliases](#34-keep-old-names-as-deprecated-aliases)
-   - 3.5 [Order Required Fields Before Optional Fields](#35-order-required-fields-before-optional-fields)
-   - 3.6 [Return New Collections from Transforms](#36-return-new-collections-from-transforms)
-   - 3.7 [Underscore Prefix for Private Names](#37-underscore-prefix-for-private-names)
-   - 3.8 [Use Keyword-Only Parameters for Optional Config](#38-use-keyword-only-parameters-for-optional-config)
+   - 3.1 [Avoid Boolean Flag Parameters in Public APIs](#31-avoid-boolean-flag-parameters-in-public-apis)
+   - 3.2 [Choose the Simplest Namespace That Matches Ownership and Polymorphism](#32-choose-the-simplest-namespace-that-matches-ownership-and-polymorphism)
+   - 3.3 [Don't Access Private Attributes](#33-dont-access-private-attributes)
+   - 3.4 [Keep Data Models Flat and Non-Redundant](#34-keep-data-models-flat-and-non-redundant)
+   - 3.5 [Keep Old Names as Deprecated Aliases](#35-keep-old-names-as-deprecated-aliases)
+   - 3.6 [Order Required Fields Before Optional Fields](#36-order-required-fields-before-optional-fields)
+   - 3.7 [Return New Collections from Transforms](#37-return-new-collections-from-transforms)
+   - 3.8 [Underscore Prefix for Private Names](#38-underscore-prefix-for-private-names)
+   - 3.9 [Use Keyword-Only Parameters for Optional Config](#39-use-keyword-only-parameters-for-optional-config)
 4. [Error Handling](#4-error-handling) — **HIGH**
    - 4.1 [Catch Specific Exception Types](#41-catch-specific-exception-types)
    - 4.2 [Consolidate try/except Blocks with the Same Handler](#42-consolidate-tryexcept-blocks-with-the-same-handler)
    - 4.3 [Inherit New Exceptions from Existing Base Exceptions](#43-inherit-new-exceptions-from-existing-base-exceptions)
-   - 4.4 [Preserve Asyncio Cancellation Semantics](#44-preserve-asyncio-cancellation-semantics)
-   - 4.5 [Trust Validated State — Skip Redundant Defensive Checks](#45-trust-validated-state-skip-redundant-defensive-checks)
-   - 4.6 [Use !r Format for Identifiers in Error Messages](#46-use-r-format-for-identifiers-in-error-messages)
-   - 4.7 [Use assert for Invariants, Not RuntimeError](#47-use-assert-for-invariants-not-runtimeerror)
-   - 4.8 [Use raise ... from to Preserve Exception Causality](#48-use-raise-from-to-preserve-exception-causality)
-   - 4.9 [Validate Input at System Boundaries](#49-validate-input-at-system-boundaries)
+   - 4.4 [Never Use Bare `except:`](#44-never-use-bare-except)
+   - 4.5 [Preserve Asyncio Cancellation Semantics](#45-preserve-asyncio-cancellation-semantics)
+   - 4.6 [Trust Validated State Within the Same Trust Domain](#46-trust-validated-state-within-the-same-trust-domain)
+   - 4.7 [Use !r Format for Identifiers in Error Messages](#47-use-r-format-for-identifiers-in-error-messages)
+   - 4.8 [Use assert Only for Debug-Only Internal Invariants](#48-use-assert-only-for-debug-only-internal-invariants)
+   - 4.9 [Use assert_never for Exhaustiveness Checks](#49-use-assertnever-for-exhaustiveness-checks)
+   - 4.10 [Use raise ... from to Preserve Exception Causality](#410-use-raise-from-to-preserve-exception-causality)
+   - 4.11 [Use with / async with for Resource Lifetimes](#411-use-with-async-with-for-resource-lifetimes)
+   - 4.12 [Validate Input at System Boundaries](#412-validate-input-at-system-boundaries)
 5. [Code Simplification](#5-code-simplification) — **MEDIUM-HIGH**
    - 5.1 [Extract Helpers After 2+ Occurrences](#51-extract-helpers-after-2-occurrences)
    - 5.2 [Flatten Nested if Statements Into and Conditions](#52-flatten-nested-if-statements-into-and-conditions)
    - 5.3 [Inline Single-Use Intermediate Variables](#53-inline-single-use-intermediate-variables)
    - 5.4 [Remove Commented-Out and Dead Code](#54-remove-commented-out-and-dead-code)
    - 5.5 [Return Early to Flatten Control Flow](#55-return-early-to-flatten-control-flow)
-   - 5.6 [Use @cached_property for Expensive Derived Attributes](#56-use-cachedproperty-for-expensive-derived-attributes)
+   - 5.6 [Use @cached_property Only When the Instance Supports It](#56-use-cachedproperty-only-when-the-instance-supports-it)
    - 5.7 [Use Comprehensions Over for+append Loops](#57-use-comprehensions-over-forappend-loops)
    - 5.8 [Use any() / all() Over Boolean-Flag Loops](#58-use-any-all-over-boolean-flag-loops)
    - 5.9 [Use x or default for Fallback Values](#59-use-x-or-default-for-fallback-values)
@@ -74,8 +81,8 @@ Comprehensive Python software engineering guidelines designed for AI agents. Con
    - 6.2 [Combine Filter and Map Into One Pass](#62-combine-filter-and-map-into-one-pass)
    - 6.3 [Compile Static Regex Patterns at Module Level](#63-compile-static-regex-patterns-at-module-level)
    - 6.4 [Define TypeAdapter Instances at Module Level](#64-define-typeadapter-instances-at-module-level)
-   - 6.5 [Use Generators for Streaming Iteration](#65-use-generators-for-streaming-iteration)
-   - 6.6 [Use Tuple Syntax in isinstance() Checks](#66-use-tuple-syntax-in-isinstance-checks)
+   - 6.5 [Prefer Tuple Syntax in isinstance() Only on Profiled Hot Paths](#65-prefer-tuple-syntax-in-isinstance-only-on-profiled-hot-paths)
+   - 6.6 [Stream with Generators When Memory or First-Result Latency Matters](#66-stream-with-generators-when-memory-or-first-result-latency-matters)
    - 6.7 [Use functools.lru_cache for Pure Functions](#67-use-functoolslrucache-for-pure-functions)
    - 6.8 [Use set for Repeated Membership Checks](#68-use-set-for-repeated-membership-checks)
 7. [Naming](#7-naming) — **MEDIUM**
@@ -87,10 +94,11 @@ Comprehensive Python software engineering guidelines designed for AI agents. Con
    - 7.6 [Use UPPER_CASE for Module Constants](#76-use-uppercase-for-module-constants)
 8. [Imports & Structure](#8-imports-structure) — **LOW-MEDIUM**
    - 8.1 [Handle Optional Dependencies Explicitly](#81-handle-optional-dependencies-explicitly)
-   - 8.2 [No Duplicate Imports](#82-no-duplicate-imports)
-   - 8.3 [Place Imports at the Top of the File](#83-place-imports-at-the-top-of-the-file)
-   - 8.4 [Remove Unused Imports](#84-remove-unused-imports)
-   - 8.5 [Scope Helpers and Constants to Their Usage Site](#85-scope-helpers-and-constants-to-their-usage-site)
+   - 8.2 [Keep Modules Cheap to Import](#82-keep-modules-cheap-to-import)
+   - 8.3 [No Duplicate Imports](#83-no-duplicate-imports)
+   - 8.4 [Place Imports at the Top of the File](#84-place-imports-at-the-top-of-the-file)
+   - 8.5 [Remove Unused Imports](#85-remove-unused-imports)
+   - 8.6 [Scope Helpers and Constants to Their Usage Site](#86-scope-helpers-and-constants-to-their-usage-site)
 
 ---
 
@@ -309,13 +317,24 @@ The answer is now computed from evidence that already exists. No sync required �
 
 **The debugging payoff:** pure derivation means tests become data-in, answer-out. Load fixtures, call the function, assert the result. No mocks, no timing reproduction.
 
-### 1.5 Encapsulate Mutable State in the Smallest Possible Scope
+### 1.5 Encapsulate Mutable State in the Narrowest Clear Scope
 
 **Impact: HIGH (limits the blast radius of state mutations)**
 
-If mutable state must exist, trap it where only the code that needs it can see it. A closure is better than an instance attribute; an instance attribute is better than a module-level global. Agents default to the loosest scope — push back.
+If mutable state must exist, give it the narrowest scope where the code that needs it is still **clear**. The principle is "narrowest *clear* scope," not "always closures over instance attributes." A closure can be the right answer when the state is small, the interface is one or two callables, and there's nothing else to inspect or test. An instance attribute is the right answer when the state belongs to a domain object with identity, when multiple methods need to share it, or when you want it to be easy to inspect, type, serialize, or mock in tests.
 
-**Incorrect (state visible to every method on the class):**
+**Pick the smallest scope where the surrounding code still reads naturally:**
+
+| Scope | Use when |
+|-------|----------|
+| Local variable | State lives entirely inside one function call |
+| Closure | A small handle of 1–2 callables; state must outlive a single call but doesn't need identity |
+| Private instance attribute (`_name`) | State belongs to a domain object; multiple methods read/write it; you want introspection, typing, and serialization |
+| Module-level global | Genuinely process-wide state — caches, registries (rare; prefer dependency injection) |
+
+Module-level globals deserve the most pushback. Closures and instance attributes are both legitimate; the choice depends on whether the state has identity worth naming.
+
+**Incorrect (state visible to every method on the class — too wide):**
 
 ```python
 from typing import Callable
@@ -324,30 +343,22 @@ class DebouncedWriter:
     def __init__(self, callback: Callable[[], None], delay_ms: int = 300):
         self._callback = callback
         self._delay_ms = delay_ms
-        self._timeout_handle: TimerHandle | None = None  # visible to all methods
+        self._timeout_handle: TimerHandle | None = None  # touched by every method
 
-    def queue_send(self, text: str) -> None:
-        # can touch _timeout_handle
-        ...
-
-    def flush_now(self) -> None:
-        # can touch _timeout_handle
-        ...
-
-    def something_else(self) -> None:
-        # can also touch _timeout_handle — and nothing prevents a bug here
-        ...
+    def queue_send(self, text: str) -> None: ...
+    def flush_now(self) -> None: ...
+    def something_else(self) -> None: ...  # nothing prevents a bug here
 ```
 
-Any method — including new ones added later — can read or mutate `_timeout_handle`. That's how invariants rot.
+If only `queue_send` and `flush_now` need `_timeout_handle`, every other method is a potential source of a state bug.
 
-**Correct (state trapped in a closure):**
+**Correct option A (closure — state trapped behind a small handle):**
 
 ```python
 from dataclasses import dataclass
 from typing import Callable
 
-@dataclass
+@dataclass(frozen=True)
 class DebouncedAction:
     trigger: Callable[[], None]
     clear: Callable[[], None]
@@ -359,12 +370,12 @@ def create_debounced_action(callback: Callable[[], None], delay_ms: int = 300) -
         nonlocal timeout
         if timeout is not None:
             timeout.cancel()
-        timeout = schedule_after(delay_ms, lambda: _fire(callback))
+        timeout = schedule_after(delay_ms, _fire)
 
-    def _fire(cb: Callable[[], None]) -> None:
+    def _fire() -> None:
         nonlocal timeout
         timeout = None
-        cb()
+        callback()
 
     def clear() -> None:
         nonlocal timeout
@@ -375,11 +386,138 @@ def create_debounced_action(callback: Callable[[], None], delay_ms: int = 300) -
     return DebouncedAction(trigger=trigger, clear=clear)
 ```
 
-Nothing outside the closure can reach `timeout`. The interface is two functions; the state is invisible.
+Good fit when the only surface is `trigger` and `clear`, and nothing else needs to inspect `timeout`.
 
-**When a class is the right tool:** when state belongs to a domain object with identity (a `User`, a `Session`), or when you need multiple methods to share state as a coherent unit. Then the state belongs on the instance — but still as `_private` attributes, not public ones.
+**Correct option B (small focused class — when identity, inspection, or tests matter):**
 
-### 1.6 Phase Related Optional Fields Into Nested Structs
+```python
+from dataclasses import dataclass, field
+from typing import Callable
+
+@dataclass
+class DebouncedAction:
+    callback: Callable[[], None]
+    delay_ms: int = 300
+    _timeout: TimerHandle | None = field(default=None, init=False, repr=False)
+
+    def trigger(self) -> None:
+        if self._timeout is not None:
+            self._timeout.cancel()
+        self._timeout = schedule_after(self.delay_ms, self._fire)
+
+    def _fire(self) -> None:
+        self._timeout = None
+        self.callback()
+
+    def clear(self) -> None:
+        if self._timeout is not None:
+            self._timeout.cancel()
+            self._timeout = None
+```
+
+Good fit when:
+
+- Tests want to assert on `_timeout` being `None`
+- A debugger should be able to print the object meaningfully
+- Subclassing or replacing `_fire` matters
+- The object will be serialized, logged, or compared
+
+Both versions are *narrower* than the original — neither lets unrelated methods touch the timer. The closure isn't categorically better; it's the right call when the surface is tiny and identity is irrelevant.
+
+**Heuristics for picking:**
+
+- One or two callables in the public interface, no introspection needed → closure
+- Several methods sharing state, identity matters, tests want to peek → focused class with `_private` attributes
+- State spans modules → reconsider the design before reaching for a module global
+
+**The wrong answer is a wide-open class.** Mutable state on a class that lets every method touch it is how invariants rot — regardless of whether the alternative is a closure or a smaller class.
+
+### 1.6 Never Use Mutable Default Arguments
+
+**Impact: CRITICAL (prevents shared-state bugs across calls and instances)**
+
+A default argument is evaluated **once**, when the `def`/class statement runs — not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore **shared across every call** that doesn't override it. The result is a footgun where appending to the "default" list on one call mutates the default for every subsequent call. The same trap exists for dataclass and Pydantic field defaults.
+
+Always use `None` (or a sentinel) and construct the mutable inside the body, or use `default_factory` for dataclasses / Pydantic fields.
+
+**Incorrect (function default — list shared across calls):**
+
+```python
+def append_item(item: int, items: list[int] = []) -> list[int]:
+    items.append(item)
+    return items
+
+append_item(1)  # [1]
+append_item(2)  # [1, 2]   ← surprise: same list as before
+append_item(3)  # [1, 2, 3]
+```
+
+The `[]` was evaluated once at function-definition time. Every call without an explicit `items=` mutates the same object.
+
+**Correct (sentinel + per-call construction):**
+
+```python
+def append_item(item: int, items: list[int] | None = None) -> list[int]:
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+
+append_item(1)  # [1]
+append_item(2)  # [2]   ← fresh list per call
+```
+
+**Incorrect (dataclass — bare mutable default raises `ValueError`, but tempting alternatives are bugs):**
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    tags: list[str] = []   # ValueError: mutable default ... is not allowed: use default_factory
+```
+
+The dataclass decorator catches the obvious case. The dangerous variant is sneaking the same list past the check via a class attribute or a shared object — both of which produce the same shared-state bug at runtime.
+
+**Correct (dataclass — `default_factory`):**
+
+```python
+from dataclasses import dataclass, field
+
+@dataclass
+class User:
+    tags: list[str] = field(default_factory=list)
+    metadata: dict[str, str] = field(default_factory=dict)
+```
+
+`field(default_factory=list)` calls `list()` once per instance, giving each `User` its own list.
+
+**Incorrect (Pydantic — sharing a list across instances):**
+
+```python
+from pydantic import BaseModel
+
+class Config(BaseModel):
+    tags: list[str] = []   # Pydantic deep-copies, but rely on intent, not accident
+```
+
+Pydantic v2 actually deep-copies the default for each instance, so this happens to work — but the intent is unclear, and the behavior depends on the Pydantic version. Make the factory explicit so future readers (and the type checker) see what you meant.
+
+**Correct (Pydantic — `Field(default_factory=...)`):**
+
+```python
+from pydantic import BaseModel, Field
+
+class Config(BaseModel):
+    tags: list[str] = Field(default_factory=list)
+    settings: dict[str, str] = Field(default_factory=dict)
+```
+
+**Heuristic:** if the default value would compare `==` to itself across calls only because it's the *same object*, it's mutable — use `None` + body construction (functions) or `default_factory` (dataclasses, Pydantic). Tuples, frozensets, strings, ints, `None`, and `frozen=True` dataclasses are safe to use directly because they can't be mutated.
+
+**`from __future__ import annotations` does not help here.** The default-value evaluation rule is unrelated to annotation evaluation; the trap fires either way.
+
+### 1.7 Phase Related Optional Fields Into Nested Structs
 
 **Impact: HIGH (one optional check instead of eight)**
 
@@ -445,7 +583,7 @@ Now consumers check one optional: `if profile.billing is not None: use profile.b
 
 **Heuristic:** if three or more optional fields are always set or always unset together, they belong in a nested struct.
 
-### 1.7 Pick a Mutation Contract
+### 1.8 Pick a Mutation Contract
 
 **Impact: HIGH (prevents ambiguous caller expectations)**
 
@@ -487,7 +625,7 @@ def with_pending_action(state: AppState, action: str) -> AppState:
 
 The contract should be obvious from the name and signature without reading the body.
 
-### 1.8 Use Discriminated Unions Over Optional Bags
+### 1.9 Use Discriminated Unions Over Optional Bags
 
 **Impact: CRITICAL (makes impossible states unrepresentable)**
 
@@ -539,9 +677,212 @@ PaymentState = PaymentIdle | PaymentProcessing | PaymentSettled
 
 Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on the variants that have it, and impossible combinations (idle with a transaction ID, settled without a timestamp) are unrepresentable.
 
-**With Pydantic:** use `Field(discriminator="status")` and a `status: Literal[...]` tag on each variant — Pydantic will validate and narrow automatically.
+**With Pydantic** *(applicability: pydantic)*: use `Field(discriminator="status")` and a `status: Literal[...]` tag on each variant — Pydantic will validate and narrow automatically.
 
 **Null over sentinels:** don't invent `"none"` action values. `pending_action: PendingAction | None` beats `pending_action: Literal["none", "confirm-address", "select-shipping"]`. Absence is not an action.
+
+### 1.10 Use Timezone-Aware Datetimes at Boundaries
+
+**Impact: HIGH (prevents off-by-hours bugs across timezones, daylight saving, and storage)**
+
+A `datetime` with no `tzinfo` is **naive**: it has no opinion about which timezone it represents. Two naive datetimes that look identical may refer to different absolute moments. Naive datetimes leak into databases, JSON payloads, log lines, and inter-service messages and cause off-by-hours bugs that surface during DST transitions, on a different host, or when a user travels.
+
+The rule: at any boundary the value crosses (HTTP, DB, queue, file format, log line, comparison with another datetime), the datetime must be **timezone-aware**. Inside a tight piece of business logic, naive is acceptable only if every value in scope shares the same explicit assumption — and even then, attaching the timezone is usually clearer.
+
+**Default to UTC for storage and transport. Convert to local timezones only at display.**
+
+**Incorrect (`datetime.utcnow()` returns a naive datetime — silently loses the "UTC" claim):**
+
+```python
+from datetime import datetime
+
+def stamp() -> datetime:
+    return datetime.utcnow()              # naive! DeprecationWarning in 3.12+
+```
+
+`datetime.utcnow()` is deprecated in Python 3.12 precisely because it returns a *naive* datetime that callers misuse as if it were UTC-aware. A serializer that interprets naive as local time will write the wrong value to the database.
+
+**Incorrect (`datetime.now()` is naive and host-local):**
+
+```python
+from datetime import datetime
+
+start = datetime.now()                    # naive, in the host's local timezone
+log.info("started", start=start)           # serializes ambiguously
+```
+
+The same code on two hosts in different timezones records different timestamps for the same event.
+
+**Incorrect (mixing naive and aware in comparisons — `TypeError`):**
+
+```python
+from datetime import datetime, timezone
+
+stored = datetime(2026, 4, 17, 12, 0)                        # naive
+now = datetime.now(timezone.utc)                              # aware
+if stored < now:                                              # TypeError!
+    ...
+```
+
+The interpreter refuses to compare naive and aware datetimes — a guard against a class of bugs that would otherwise be silent.
+
+**Correct (UTC at every boundary):**
+
+```python
+from datetime import datetime, timezone
+
+def stamp() -> datetime:
+    return datetime.now(timezone.utc)     # aware, unambiguous
+
+start = datetime.now(timezone.utc)
+log.info("started", start=start.isoformat())  # "2026-04-17T12:00:00+00:00"
+```
+
+`datetime.now(timezone.utc)` is the modern replacement for `datetime.utcnow()`. The result is aware and round-trips through `isoformat()` / `fromisoformat()` cleanly.
+
+**Correct (named local timezone via `zoneinfo` for display):**
+
+```python
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+stored = datetime.now(timezone.utc)                       # store in UTC
+display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # convert at display
+print(display.strftime("%Y-%m-%d %H:%M %Z"))
+```
+
+`zoneinfo` (Python 3.9+, PEP 615) reads from the system tzdata; it handles DST and historical offsets correctly. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`), so DST transitions resolve.
+
+**Correct (parsing user/API input — fail loudly on missing timezone):**
+
+```python
+from datetime import datetime, timezone
+
+def parse_iso(s: str) -> datetime:
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        raise ValueError(f"datetime {s!r} is missing a timezone offset")
+    return dt.astimezone(timezone.utc)
+```
+
+If your callers can send naive datetimes, decide once whether to reject them or to assume a fixed zone — but never *silently* treat naive as UTC.
+
+**Pydantic / dataclasses:**
+
+```python
+from datetime import datetime, timezone
+from pydantic import BaseModel, AwareDatetime
+
+class Event(BaseModel):
+    occurred_at: AwareDatetime    # Pydantic v2: rejects naive datetimes at validation
+```
+
+`pydantic.AwareDatetime` enforces the rule at the model boundary. The standard library doesn't ship a "must be aware" annotation; encode the constraint with a validator or rely on Pydantic.
+
+**Database guidance:**
+
+- PostgreSQL: use `TIMESTAMPTZ` (stores UTC). Driver returns aware datetimes.
+- SQLite / MySQL: store ISO-8601 strings with `+00:00`, or store epoch milliseconds.
+- ORMs: configure timezone-aware columns explicitly; defaults vary.
+
+**When naive is acceptable:**
+
+- Pure date arithmetic where time-of-day doesn't matter (`date`, not `datetime`)
+- A small block of business logic where every value is naive and the timezone is documented in scope
+- Integrating with a legacy system whose contract is naive — but convert at the boundary on the way out
+
+**Heuristic:** if the datetime is going to live longer than the function it's created in, it should be aware. Naive datetimes are a sharp local tool, never a transport format.
+
+### 1.11 Use a Sentinel Object When None Is a Real Domain Value
+
+**Impact: MEDIUM-HIGH (distinguishes "no value passed" from "None passed deliberately")**
+
+When `None` carries semantic meaning in your domain — "the user explicitly cleared this field," "no parent," "no assignee" — you can no longer use `None` as a "not provided" default. Reach for a private sentinel object instead. This complements `types-remove-redundant-optional`: that rule says drop `| None` when `None` is impossible; this rule says use a sentinel when `None` is meaningfully different from "not passed."
+
+PEP 661 documents the pattern (it didn't standardize a syntax, but the idiom is universal). The sentinel is a unique object you compare with `is`, never with `==`.
+
+**Incorrect (using `None` as both "absent" and "explicitly cleared"):**
+
+```python
+def update_user(user_id: str, nickname: str | None = None) -> User:
+    user = db.get(user_id)
+    user.nickname = nickname        # was the caller clearing the nickname,
+    db.save(user)                   # or did they just not pass it?
+    return user
+
+update_user("u1")                   # didn't touch nickname? cleared it?
+update_user("u1", nickname=None)    # same call — same ambiguity
+update_user("u1", nickname="bob")   # this one is clear
+```
+
+There is no way for the function to tell "the caller didn't mention nickname" from "the caller wants to clear it." That ambiguity has bitten every PATCH-style API ever written.
+
+**Correct (sentinel default + `None` meaning "clear"):**
+
+```python
+from typing import Final
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unset>"
+
+UNSET: Final = _Unset()
+
+def update_user(
+    user_id: str,
+    nickname: str | None | _Unset = UNSET,
+) -> User:
+    user = db.get(user_id)
+    if nickname is not UNSET:
+        user.nickname = nickname     # may be None (cleared) or a real string
+    db.save(user)
+    return user
+
+update_user("u1")                    # nickname untouched
+update_user("u1", nickname=None)     # nickname cleared
+update_user("u1", nickname="bob")    # nickname set to "bob"
+```
+
+Compare with `is`, not `==`, so callers can't accidentally pass an object that compares equal.
+
+**For Pydantic models — same pattern, same payoff.** Distinguishing "field omitted from PATCH payload" vs. "field set to null" is the canonical use case:
+
+```python
+from typing import Any
+from pydantic import BaseModel, Field
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<unset>"
+
+UNSET: Any = _Unset()  # Any so it satisfies any field annotation
+
+class UserPatch(BaseModel):
+    nickname: str | None = Field(default=UNSET)
+    email: str = Field(default=UNSET)
+
+    def changes(self) -> dict[str, object]:
+        return {k: v for k, v in self.model_dump().items() if v is not UNSET}
+```
+
+Now `UserPatch(nickname=None).changes() == {"nickname": None}` (clear) and `UserPatch().changes() == {}` (untouched).
+
+**`typing` exposes `Sentinel` (3.13+, PEP 661 follow-up).** When available, you can shorten the boilerplate:
+
+```python
+# Python 3.13+ (proposed; check your interpreter)
+from typing import Sentinel
+
+UNSET = Sentinel("UNSET")
+```
+
+Until that lands universally, the small `_Unset` class above is the portable form.
+
+**Don't use generic objects as sentinels.** `_UNSET = object()` works, but it gives no help to readers, type checkers, or debuggers. A small named class with a `__repr__` makes tracebacks readable.
+
+**Don't reach for sentinels when `None` is fine.** If `None` already means "absent" and there's no separate "explicitly cleared" state to distinguish, plain `nickname: str | None = None` is the right answer. The sentinel earns its complexity only when both meanings need to coexist.
+
+**Heuristic:** if your function or model needs to distinguish three states — "not provided," "provided as None," "provided as a real value" — you need a sentinel. Two states (`None` vs. value) is just `Optional`.
 
 ## 2. Type Safety
 
@@ -756,7 +1097,7 @@ def render_tool_result(part: ToolPart) -> str:
 
 `assert_never` ensures that if `ToolPart` gains a new variant, every `match` on it is re-examined.
 
-### 2.5 Remove Redundant Optional Annotations
+### 2.5 Remove Redundant `| None` When Values Are Guaranteed
 
 **Impact: MEDIUM (eliminates false uncertainty in the type signature)**
 
@@ -1089,7 +1430,195 @@ When `part.kind` is a `Literal` discriminator on a `Union`, `match` narrows each
 
 Interface decisions that compound over years. Keyword-only parameters, private underscores, immutable transforms. The difference between an API that ages well and one that accumulates compatibility shims.
 
-### 3.1 Don't Access Private Attributes
+### 3.1 Avoid Boolean Flag Parameters in Public APIs
+
+**Impact: HIGH (prevents call sites that read like "do_thing(thing, True, False)")**
+
+A boolean parameter is a binary mode switch hiding behind a generic type. The call site `download(url, True, False, True)` is unreadable, the function body branches on the flag with two near-duplicate code paths, and adding a third mode later requires breaking the API. This is the function-level cousin of `data-explicit-variants`: when behavior meaningfully changes on a flag, prefer split functions or a `Literal`/`Enum` parameter.
+
+**Incorrect (boolean flags — call sites lose meaning):**
+
+```python
+def export_report(rows: list[Row], to_csv: bool = True, compress: bool = False) -> bytes:
+    if to_csv:
+        data = render_csv(rows)
+    else:
+        data = render_json(rows)
+    if compress:
+        data = gzip.compress(data)
+    return data
+
+export_report(rows, True, False)   # what does True/False mean here?
+export_report(rows, False, True)   # JSON, compressed? CSV, compressed? Reader can't tell.
+```
+
+The function body is two if-branches stacked, the call sites carry no information, and any third format (Parquet, XML) means another bool — `to_csv: bool, to_json: bool, to_parquet: bool` is incoherent.
+
+**Correct option A (split into separate functions when bodies barely overlap):**
+
+```python
+def export_csv(rows: list[Row]) -> bytes: ...
+def export_json(rows: list[Row]) -> bytes: ...
+
+def with_compression(data: bytes) -> bytes:
+    return gzip.compress(data)
+
+# call site
+data = with_compression(export_csv(rows))
+```
+
+Each function does one thing. Adding `export_parquet` is additive, not breaking. Compression composes orthogonally.
+
+**Correct option B (`Literal` parameter when the modes share most of the body):**
+
+```python
+from typing import Literal
+
+Format = Literal["csv", "json", "parquet"]
+
+def export_report(rows: list[Row], format: Format, *, compress: bool = False) -> bytes:
+    match format:
+        case "csv":     data = render_csv(rows)
+        case "json":    data = render_json(rows)
+        case "parquet": data = render_parquet(rows)
+    return gzip.compress(data) if compress else data
+
+export_report(rows, format="csv", compress=True)
+```
+
+Adding a fourth format is a one-line change to the `Literal`; the call sites read meaningfully (`format="parquet"` instead of `True, False, True`).
+
+**Correct option C (`Enum` when the modes carry behavior or constants):**
+
+```python
+from enum import Enum
+
+class CompressionLevel(Enum):
+    NONE = 0
+    FAST = 1
+    BEST = 9
+
+def export_report(rows: list[Row], *, level: CompressionLevel = CompressionLevel.NONE) -> bytes:
+    data = render_csv(rows)
+    if level is CompressionLevel.NONE:
+        return data
+    return gzip.compress(data, compresslevel=level.value)
+```
+
+The enum gives each variant a name *and* a meaningful value. Type checkers narrow on `is` comparisons.
+
+**`bool` parameters that are genuinely binary toggles are still okay** — but only when:
+
+- The flag is keyword-only (use `*` per `api-keyword-only-params`)
+- The name clearly answers "what does True mean?" (`include_archived=True`, `strict=True`, `dry_run=True`)
+- There's no plausible third mode coming
+- The body doesn't fork into two near-duplicate paths
+
+```python
+def list_users(*, include_archived: bool = False) -> list[User]:
+    if include_archived:
+        return query_all_users()
+    return query_active_users()
+```
+
+`include_archived=True` reads at the call site. The body is genuinely a small branch on a single SQL filter.
+
+**Heuristic:** read your call sites out loud. `export_report(rows, True, False)` fails the test. `export_report(rows, format="csv", compress=True)` passes. If you hear positional booleans, the API needs splitting or a `Literal`.
+
+### 3.2 Choose the Simplest Namespace That Matches Ownership and Polymorphism
+
+**Impact: MEDIUM (avoids unnecessary coupling without forcing a binary choice)**
+
+Python lets the same logic live as a module-level function, an instance method, a `@classmethod`, a `@staticmethod`, a method on a `Protocol`, or a method on a `dataclass`. None of these is universally right. Pick the smallest namespace that captures **ownership** (does this operation belong to one object?) and **polymorphism** (will multiple types provide their own version?).
+
+A useful decision order, from simplest to most coupled:
+
+1. **Module-level function** — when the logic is a pure utility that operates on its arguments and doesn't need to be overridden.
+2. **Instance method** — when the logic naturally reads as "this object does X" and uses `self`, *or* when subclasses / Protocol implementations need to provide their own version.
+3. **`@classmethod`** — alternative constructors, factory methods, things that need the class but not an instance.
+4. **`@staticmethod`** — namespace grouping when the helper is conceptually tied to the class but takes no `self`/`cls`. Often a sign a module-level function would do.
+5. **Protocol** — when several unrelated types need to provide the same interface and you want structural typing.
+
+There is no "correct" tier; pick the simplest one that fits.
+
+**Incorrect (module-level function awkwardly threading state through `user`):**
+
+```python
+def update_user_preferences(user: User, key: str, value: object) -> None:
+    user.prefs[key] = value
+    user.last_modified = now()
+
+def get_user_display_name(user: User) -> str:
+    return f"{user.first_name} {user.last_name}"
+```
+
+These mutate or read `user` state, name `user` in their parameter list, and have no second caller type. They belong on `User`.
+
+**Correct (instance methods — ownership matches the object):**
+
+```python
+class User:
+    def update_preference(self, key: str, value: object) -> None:
+        self.prefs[key] = value
+        self.last_modified = now()
+
+    @property
+    def display_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+```
+
+**Incorrect (instance method that doesn't need `self` and isn't overridden):**
+
+```python
+class DateFormatter:
+    def format_iso(self, d: date) -> str:
+        return d.isoformat()  # `self` is unused
+```
+
+**Correct (module-level function):**
+
+```python
+def format_iso(d: date) -> str:
+    return d.isoformat()
+```
+
+If five subclasses of `DateFormatter` are about to override `format_iso` with locale-specific behavior, the method form is correct after all — polymorphism justifies the coupling.
+
+**`@classmethod` for alternative constructors:**
+
+```python
+class Event:
+    def __init__(self, kind: str, payload: dict[str, Any]) -> None:
+        self.kind = kind
+        self.payload = payload
+
+    @classmethod
+    def from_json(cls, raw: str) -> "Event":
+        data = json.loads(raw)
+        return cls(kind=data["kind"], payload=data["payload"])
+```
+
+`from_json` doesn't need an instance, but it does need the class for subclass-friendly construction.
+
+**`@staticmethod` is the rarest tier.** If the function takes no `self` and no `cls`, the only reason to attach it to a class is namespacing — and a module-level function is usually cleaner. Reserve `@staticmethod` for cases where the class genuinely makes the helper more discoverable (a small private validator on a model, for example).
+
+**Protocols when the consumer doesn't need to know the producer:**
+
+```python
+from typing import Protocol
+
+class JSONSerializable(Protocol):
+    def to_json(self) -> str: ...
+
+def write(obj: JSONSerializable, path: Path) -> None:
+    path.write_text(obj.to_json())
+```
+
+Now any type with `to_json` works — no shared base class, no inheritance.
+
+**Heuristic:** start at module scope. Promote to a method only when ownership or polymorphism *actually* demand it. The cost of starting too coupled (everything on a class) is harder to undo than the cost of starting too loose (a free function you later move).
+
+### 3.3 Don't Access Private Attributes
 
 **Impact: HIGH (prevents breakage when internals change)**
 
@@ -1126,68 +1655,7 @@ If `some_lib` doesn't expose what you need, open an issue or PR. Using `_private
 
 **Double underscore (`__name`) is stronger:** Python name-mangles `__name` to `_ClassName__name`, making accidental access even harder. Use it for attributes you're committed to keeping inaccessible.
 
-### 3.2 Instance Methods for State, Module Functions for Pure Logic
-
-**Impact: MEDIUM (avoids unnecessary coupling while enabling polymorphism)**
-
-Agents tend to put everything on classes because "that's how OOP works" — or conversely, make everything a module-level function because "pure is better." The right call depends on whether the function genuinely needs `self` or enables polymorphism.
-
-**Use an instance method when:**
-- The function accesses `self` attributes
-- It's a natural operation on the object (the method *is* part of the object's interface)
-- Subclasses will override it (polymorphism)
-
-**Use a module-level function when:**
-- Nothing about the logic depends on instance state
-- The function is a pure utility that happens to take an object of that class
-- Multiple classes could reasonably use the same helper
-
-**Incorrect (module-level function awkwardly threading state):**
-
-```python
-def update_user_preferences(user: User, key: str, value: object) -> None:
-    user.prefs[key] = value
-    user.last_modified = now()
-
-def get_user_display_name(user: User) -> str:
-    return f"{user.first_name} {user.last_name}"
-```
-
-These both mutate/read `user` state and are core user operations — they belong on `User`.
-
-**Correct (instance methods):**
-
-```python
-class User:
-    def update_preference(self, key: str, value: object) -> None:
-        self.prefs[key] = value
-        self.last_modified = now()
-
-    @property
-    def display_name(self) -> str:
-        return f"{self.first_name} {self.last_name}"
-```
-
-**Incorrect (instance method that doesn't need `self`):**
-
-```python
-class DateFormatter:
-    def format_iso(self, d: date) -> str:
-        return d.isoformat()  # doesn't touch self
-```
-
-**Correct (module-level function):**
-
-```python
-def format_iso(d: date) -> str:
-    return d.isoformat()
-```
-
-**Extract shared logic to private top-level helpers** when multiple classes need the same computation — don't duplicate it across methods.
-
-**`@staticmethod` / `@classmethod`:** reach for these sparingly. If a method doesn't need `self` or `cls`, it's usually a module-level function. Reserve them for alternative constructors (`@classmethod`) or namespace-grouped utilities where the class genuinely makes things more discoverable.
-
-### 3.3 Keep Data Models Flat and Non-Redundant
+### 3.4 Keep Data Models Flat and Non-Redundant
 
 **Impact: MEDIUM (reduces API surface and prevents field drift)**
 
@@ -1243,7 +1711,7 @@ class ToolCall:
 
 **Why it matters:** redundancy means every mutation site has two (or more) places to update. Skipping one creates a drift bug that's only visible when the fields disagree.
 
-### 3.4 Keep Old Names as Deprecated Aliases
+### 3.5 Keep Old Names as Deprecated Aliases
 
 **Impact: HIGH (enables gradual migration without breakage)**
 
@@ -1259,7 +1727,7 @@ def get_user(user_id: str) -> User: ...
 def fetch_user(user_id: str) -> User: ...  # renamed — v1.0 callers now crash
 ```
 
-**Correct (deprecated alias):**
+**Correct (deprecated alias with `warnings.warn`):**
 
 ```python
 import warnings
@@ -1278,35 +1746,61 @@ def get_user(user_id: str) -> User:
 
 Old callers keep working with a warning; new callers use the new name.
 
-**For parameter renames, use `typing.deprecated` (Python 3.13+) or keyword handling:**
+**On Python 3.13+, prefer `warnings.deprecated()` for whole functions, classes, and overloads.** PEP 702 added a standard decorator that emits the warning, marks the symbol so static checkers can flag callers, and surfaces the deprecation in IDE tooling. The decorator lives in `warnings`, **not** `typing`:
 
 ```python
+import warnings  # Python 3.13+
+
+@warnings.deprecated("get_user is deprecated; use fetch_user instead.")
+def get_user(user_id: str) -> User:
+    return fetch_user(user_id)
+
+
+@warnings.deprecated("LegacyClient is deprecated; use Client instead.")
+class LegacyClient(Client): ...
+```
+
+Type checkers that implement PEP 702 (mypy, pyright) report calls to deprecated names without you having to wire `warnings.warn` by hand.
+
+**For renamed parameters, `warnings.deprecated()` does not apply** — it decorates whole symbols, not individual parameters. Use a compatibility keyword path plus a runtime warning inside the function:
+
+```python
+import warnings
+from typing import Any
+
+_MISSING: Any = object()
+
 def fetch_user(
-    user_id: str,
+    user_id: str = _MISSING,
     *,
     timeout: float = 30,
-    user_id_alt: str | None = None,  # old name
+    user_id_alt: str = _MISSING,  # old name; remove in next major
 ) -> User:
-    if user_id_alt is not None:
+    if user_id_alt is not _MISSING:
         warnings.warn(
-            "user_id_alt is deprecated; pass user_id instead.",
+            "the user_id_alt parameter is deprecated; pass user_id instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        user_id = user_id_alt
+        if user_id is _MISSING:
+            user_id = user_id_alt
+    if user_id is _MISSING:
+        raise TypeError("fetch_user() missing required argument: 'user_id'")
     ...
 ```
+
+The compatibility shim (the old keyword still accepted, then forwarded) is what preserves callers; the `warnings.warn(..., DeprecationWarning, stacklevel=2)` call is what surfaces the migration.
 
 **Deprecation policy:**
 
 1. Add the new name. Old name becomes an alias.
-2. Emit a `DeprecationWarning` explaining the migration.
+2. Emit a `DeprecationWarning` (via `warnings.warn` or `@warnings.deprecated`) explaining the migration.
 3. Document the deprecation in the changelog and docstrings.
 4. Remove the alias in a later major version (follow your project's deprecation window — typically one or two releases).
 
 **When you can skip the alias:** the function was never part of the documented public API (starts with `_`, not in `__all__`, not in published docs). Internal renames don't need deprecation.
 
-### 3.5 Order Required Fields Before Optional Fields
+### 3.6 Order Required Fields Before Optional Fields
 
 **Impact: HIGH (Python enforces this at class-definition time)**
 
@@ -1364,7 +1858,7 @@ def connect(port, host="localhost"): ...
 def connect(*, port, host="localhost", retries): ...
 ```
 
-### 3.6 Return New Collections from Transforms
+### 3.7 Return New Collections from Transforms
 
 **Impact: HIGH (prevents surprising side effects)**
 
@@ -1406,7 +1900,7 @@ Name conventions:
 
 **Rule of thumb:** if the function's name is a verb phrase describing a transformation, default to returning new. If it's imperative and clearly a command (`sort`, `apply`, `set`), mutation is expected.
 
-### 3.7 Underscore Prefix for Private Names
+### 3.8 Underscore Prefix for Private Names
 
 **Impact: HIGH (signals internal API and limits backward-compat obligations)**
 
@@ -1455,7 +1949,7 @@ class Cache:
 
 **`__all__` is the contract:** `from mymodule import *` respects `__all__`. Tools like Sphinx and type checkers also use it to determine the public surface. Keep it minimal and accurate.
 
-### 3.8 Use Keyword-Only Parameters for Optional Config
+### 3.9 Use Keyword-Only Parameters for Optional Config
 
 **Impact: HIGH (prevents breakage when adding or reordering params)**
 
@@ -1514,7 +2008,7 @@ Sloppy exceptions hide bugs; good exceptions localize them. Catch specific types
 
 **Impact: HIGH (prevents masking unrelated bugs)**
 
-`except Exception:` catches everything — including the bugs you wanted to see. Agents default to broad handlers because "we should be resilient"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle.
+Catch the specific exception types you actually intend to handle. A broad `except Exception:` catches every regular error in your codebase, including bugs you wanted to see. (For the even worse `except:` with no type at all — which also catches `KeyboardInterrupt` and `SystemExit` — see `error-no-bare-except`.) Agents default to broad handlers because "we should be resilient"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle.
 
 **Incorrect (bare except catches unrelated errors):**
 
@@ -1700,7 +2194,71 @@ Callers can catch at whichever level of specificity they need. Adding new subtyp
 
 **Use `__init_subclass__` or explicit checks** if you need to prevent direct instantiation of the base — keep the type system as the contract enforcement.
 
-### 4.4 Preserve Asyncio Cancellation Semantics
+### 4.4 Never Use Bare `except:`
+
+**Impact: HIGH (bare except swallows KeyboardInterrupt, SystemExit, and async cancellation)**
+
+`except:` (with no exception type) catches **`BaseException`** — every exception in the interpreter, including the ones you must not silently swallow:
+
+- `KeyboardInterrupt` — Ctrl-C
+- `SystemExit` — `sys.exit()`, normal interpreter shutdown
+- `asyncio.CancelledError` (3.8+) and `BaseExceptionGroup` (3.11+) — async cancellation
+- `MemoryError`, `GeneratorExit`, internal interpreter signals
+
+Bare `except` is broader than `except Exception:`, and the breadth is exactly the problem. PEP 8 calls it out: *"A bare `except:` clause will catch `SystemExit` and `KeyboardInterrupt` exceptions, making it harder to interrupt a program with Control-C."* `flake8` / `ruff` flag it as `E722`. Treat any bare `except:` as a bug.
+
+**Incorrect (bare except — Ctrl-C cannot interrupt this loop):**
+
+```python
+while True:
+    try:
+        process_one()
+    except:                      # E722: bare except
+        log("retrying")
+        time.sleep(1)
+```
+
+A user who hits Ctrl-C is ignored. A `sys.exit()` from a child function is ignored. An async `CancelledError` is swallowed and the task hangs.
+
+**Incorrect (`except BaseException:` — same problem, spelled out):**
+
+```python
+try:
+    do_work()
+except BaseException:           # don't catch BaseException directly either
+    log("done")
+```
+
+Catching `BaseException` is the explicit form of the same mistake.
+
+**Correct (catch what you actually intend to handle):**
+
+```python
+while True:
+    try:
+        process_one()
+    except (TimeoutError, ConnectionError) as exc:
+        log("retrying", exc_info=exc)
+        time.sleep(1)
+    # KeyboardInterrupt, SystemExit, CancelledError propagate as they should
+```
+
+**Correct when you need a true catch-all (last line of defense — log and re-raise):**
+
+```python
+def handle_request(req: Request) -> Response:
+    try:
+        return process(req)
+    except Exception:           # NOT bare; excludes BaseException-only types
+        logger.exception("unhandled error in request handler")
+        raise                   # never swallow
+```
+
+Use `except Exception:` (not bare) at the outermost layer of a request handler, worker loop, or top-level entrypoint where you must log unexpected errors. Always re-raise — see `error-specific-exceptions` for the broader handler discussion, and `error-preserve-cancellation` for why `CancelledError` must reach the event loop.
+
+**The only legitimate use of `except BaseException:`** is in framework-level cleanup code that genuinely must run before the process exits (e.g., flushing logs in a process supervisor) — and even then, the handler must re-raise. If you're not writing that, you don't need it.
+
+### 4.5 Preserve Asyncio Cancellation Semantics
 
 **Impact: HIGH (avoids hung tasks and false-positive review flags)**
 
@@ -1776,30 +2334,57 @@ async def session() -> None:
 
 **Review heuristic for `except Exception:` in async code:** flag it for diagnostic precision, client-visible error leaks, or swallowing domain bugs — never for cancellation safety on Python 3.8+. Before claiming otherwise, verify the project's Python version and whether the catch is `Exception` or `BaseException`.
 
-### 4.5 Trust Validated State — Skip Redundant Defensive Checks
+### 4.6 Trust Validated State Within the Same Trust Domain
 
-**Impact: MEDIUM (removes clutter and improves resilience)**
+**Impact: MEDIUM (removes clutter without losing real safety)**
 
-Once a value has been validated at the boundary, internal code should trust it. Agents tend to add defensive checks "just in case" deep inside the call chain — the cost is noise, false branches, and the impression that validation elsewhere isn't reliable.
+Once a value has been validated *and the validated object is immutable, locally constructed, and stays inside the same trust domain*, internal helpers can skip re-checking it. Outside that narrow case, defensive checks may still earn their keep — mutable objects can drift, plugin/untyped callers can construct bad instances, and rehydrated objects (from a cache, a queue, the database) cross a trust boundary even if the type name is the same.
 
-**Incorrect (re-checking already-validated state):**
+This rule is the cousin of `types-trust-the-checker`. The principle is the same — don't duplicate guarantees the system already provides — but state requires more care than types because state can change after validation.
+
+**Trust-domain checklist before deleting a defensive check:**
+
+1. **Immutability** — the object is frozen, or the field cannot be reassigned after construction.
+2. **Locally constructed** — built by code you control, in this process, since the last validation.
+3. **No untyped/plugin caller** — no place can produce the type without going through the validator.
+4. **No rehydration since validation** — not loaded from cache, queue, RPC, or DB without re-validating.
+
+Meet all four → trust the invariant. Miss one → keep the check.
+
+**Incorrect (re-checking validated immutable state inside the same module):**
 
 ```python
+from pydantic import BaseModel, model_validator
+
+class ValidatedOrder(BaseModel):
+    model_config = {"frozen": True}
+    items: list[Item]
+    total: int
+
+    @model_validator(mode="after")
+    def _check(self) -> "ValidatedOrder":
+        if not self.items:
+            raise ValueError("order must have items")
+        if self.total < 0:
+            raise ValueError("total must be non-negative")
+        return self
+
+
 def fulfill_order(order: ValidatedOrder) -> None:
-    if order is None:             # already enforced by type
+    if order is None:             # type already excludes None
         raise ValueError("order required")
-    if not order.items:           # already enforced by Pydantic validator
+    if not order.items:           # validator guarantees this
         raise ValueError("order must have items")
-    if order.total < 0:           # already enforced by validator
+    if order.total < 0:           # validator guarantees this
         raise ValueError("total must be non-negative")
 
     for item in order.items:
         process(item)
 ```
 
-Every one of these checks was already done when `ValidatedOrder` was constructed. Repeating them says "I don't trust the validation."
+Frozen + validated + local construction + no rehydration → the checks are noise.
 
-**Correct (trust the invariants):**
+**Correct (trust the invariant):**
 
 ```python
 def fulfill_order(order: ValidatedOrder) -> None:
@@ -1807,35 +2392,63 @@ def fulfill_order(order: ValidatedOrder) -> None:
         process(item)
 ```
 
-Cleaner, faster, and if the validator changes, this function doesn't need updating.
+**Keep defensive checks when any condition fails.** Concrete examples:
 
-**When defensive checks are appropriate:**
+**Mutable object:**
 
-- At trust boundaries (first function to touch external data)
-- Around code paths that can bypass the validator (direct construction in tests, deserialization shortcuts)
-- When the invariant is load-bearing and a bug elsewhere could silently violate it (use `assert` to document)
+```python
+@dataclass  # not frozen
+class Cart:
+    items: list[Item]  # callers can mutate after construction
+
+def checkout(cart: Cart) -> None:
+    if not cart.items:                      # KEEP — caller could have cleared the list
+        raise EmptyCartError()
+    ...
+```
+
+**Rehydrated from external storage:**
+
+```python
+def replay_from_queue(payload: bytes) -> None:
+    order = ValidatedOrder.model_validate_json(payload)
+    # Validator just ran on this newly-constructed object → no extra check needed here.
+    ...
+
+def load_from_cache(key: str) -> ValidatedOrder:
+    raw = cache.get(key)
+    return ValidatedOrder.model_validate_json(raw)  # KEEP validation — cache crossed a boundary
+```
+
+**Untyped or plugin caller:**
+
+```python
+def run_user_plugin(plugin: Any) -> None:
+    config = plugin.get_config()
+    if not isinstance(config, ValidatedConfig):    # KEEP — plugin might return anything
+        raise TypeError("plugin returned non-ValidatedConfig")
+    ...
+```
+
+**Document the invariant once when you do trust it.** A single `assert` (with the caveats from `error-assert-debug-only`) at the entry point can serve as documentation for readers without sprinkling defensive `if` chains through the body:
 
 ```python
 def fulfill_order(order: ValidatedOrder) -> None:
-    assert order.items, "ValidatedOrder must have items (validator guarantees this)"
-    # assertion documents the invariant; runs in dev, stripped in production
+    assert order.items, "ValidatedOrder validator guarantees non-empty items"
     for item in order.items:
         process(item)
 ```
 
-**Use defaults instead of assertions** when the goal is resilience rather than catching bugs:
+**Resilience vs. strictness.** When the goal is "keep running on bad input" rather than "catch a bug," reach for a default rather than a check-and-raise:
 
 ```python
-# defensive, resilient — use when the system should keep running
+# resilient — fall back when config is missing or malformed
 timeout = config.timeout if config.timeout > 0 else DEFAULT_TIMEOUT
-
-# defensive, strict — use when a zero timeout means someone messed up
-assert config.timeout > 0, "timeout must be positive"
 ```
 
-Pick based on whether you want the system to fail or to fall back. Don't do both.
+Pick one — fail or fall back — not both. Defensive checks belong where the four-item checklist above doesn't pass.
 
-### 4.6 Use !r Format for Identifiers in Error Messages
+### 4.7 Use !r Format for Identifiers in Error Messages
 
 **Impact: MEDIUM (produces consistent, unambiguous messages)**
 
@@ -1874,27 +2487,133 @@ raise KeyError(f"unknown key {key!r} in {registry_name!r}")
 
 **When backticks are preferable:** some codebases use Markdown-style backticks for user-facing messages (CLI output, log lines humans read). Pick one convention per project and stick to it. `!r` is usually right for Python exception messages; backticks are usually right for log strings rendered in docs or notebooks.
 
-### 4.7 Use assert for Invariants, Not RuntimeError
+### 4.8 Use assert Only for Debug-Only Internal Invariants
 
-**Impact: MEDIUM-HIGH (documents assumptions and fails fast in development)**
+**Impact: HIGH (prevents production checks from silently disappearing under -O)**
 
-`assert` documents "this can't happen" — and fails loudly in development if it does. `RuntimeError("internal error")` obscures the intent and fires the same in production, making programming errors look like runtime issues. Reserve exceptions for conditions the caller can reasonably respond to.
+`assert` is a **debug-only** statement. The Python language reference is explicit: assertions emit no code when Python is run with `-O` (or `PYTHONOPTIMIZE`), so the check disappears in optimized builds. That makes `assert` the right tool for "this can never happen if my code is correct" — and the *wrong* tool for any check that must run in production.
 
-**Incorrect (RuntimeError for impossible state):**
+**Incorrect (using `assert` to enforce a runtime contract that must hold):**
+
+```python
+def transfer_funds(account_id: str, amount: int) -> None:
+    assert amount > 0, "amount must be positive"  # vanishes under -O
+    assert account_id, "account_id required"      # vanishes under -O
+    ...
+```
+
+If this module is imported into a service deployed with `python -O`, both checks compile to nothing. A negative `amount` will sail through and corrupt state; the contract is gone.
+
+**Incorrect (using `assert` for input validation):**
+
+```python
+def parse_request(payload: bytes) -> Request:
+    data = json.loads(payload)
+    assert "user_id" in data, "missing user_id"  # never trust user input via assert
+    ...
+```
+
+User-supplied input must be validated with real exceptions — assertions can be optimized away, and even when present they raise `AssertionError`, which is a poor signal at a system boundary.
+
+**Correct (use `assert` only for "this is impossible if the rest of the code is correct"):**
 
 ```python
 def process_step(step: Step) -> Result:
-    match step:
-        case InitStep():  return init()
-        case RunStep():   return run()
-        case DoneStep():  return done()
-
-    raise RuntimeError("unexpected step")  # shouldn't be reachable if types are right
+    # Step is a closed union; reaching the default branch is a programmer error.
+    if isinstance(step, InitStep): return init()
+    if isinstance(step, RunStep):  return run()
+    if isinstance(step, DoneStep): return done()
+    assert False, f"unhandled Step variant: {step!r}"  # debug aid only
 ```
 
-If a new `Step` variant is added and this function isn't updated, `RuntimeError("unexpected step")` fires in production. It looks like a runtime problem — but it's a coding error the type system should have caught.
+The assertion documents the invariant. In development it fires loudly if the union grows a new variant; in production with `-O` it's gone, but at that point you're trusting the type system to have caught the gap. (For exhaustiveness specifically, `typing.assert_never` is sharper — see `error-assert-never-exhaustiveness`.)
 
-**Correct (assert_never for exhaustiveness; assert for invariants):**
+**Correct (use real exceptions for anything that must hold in production):**
+
+```python
+def transfer_funds(account_id: str, amount: int) -> None:
+    if not account_id:
+        raise ValueError("account_id required")
+    if amount <= 0:
+        raise ValueError("amount must be positive")
+    ...
+```
+
+`ValueError` (or a domain-specific exception) is meaningful to callers, can be caught and handled, and survives `-O`.
+
+**Use `assert` when:**
+
+- The condition is a programmer-error invariant the type system can't fully express ("this list is sorted," "this counter is non-negative by construction")
+- You want a sanity check during development that's free in production
+- A `# noqa`-style "I know this can't happen" comment would otherwise be tempting
+
+**Use a real exception when:**
+
+- The check guards against caller mistakes (`ValueError`, `TypeError`)
+- The input crosses a trust boundary (user input, external API, deserialized data)
+- The failure mode is meaningful to the caller (`PermissionError`, `TimeoutError`, custom domain types)
+- The check must run in production no matter how the interpreter is invoked
+
+If you can't articulate why losing the check under `-O` is acceptable, it shouldn't be an `assert`.
+
+### 4.9 Use assert_never for Exhaustiveness Checks
+
+**Impact: HIGH (turns "missing variant" into a type-check error)**
+
+`typing.assert_never()` (Python 3.11+) is the right tool for "I've handled every variant of this union." Static checkers treat the call site as unreachable — if the union grows a new member, the checker reports the missed branch as a type error *before* the code ships. At runtime it raises `AssertionError`, so a missed case still fails loudly even if the checker is bypassed.
+
+This is **separate from** `assert` (the statement). `assert` is debug-only and can be stripped under `-O`; `assert_never` is a function call that always runs and is purpose-built for exhaustiveness narrowing.
+
+**Incorrect (RuntimeError for unreachable branch — checker doesn't help):**
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class InitStep: ...
+@dataclass
+class RunStep: ...
+@dataclass
+class DoneStep: ...
+
+Step = InitStep | RunStep | DoneStep
+
+def process_step(step: Step) -> Result:
+    if isinstance(step, InitStep): return init()
+    if isinstance(step, RunStep):  return run()
+    if isinstance(step, DoneStep): return done()
+    raise RuntimeError(f"unexpected step: {step!r}")  # checker can't tell this is exhaustive
+```
+
+If a future change adds `PausedStep` to the union, this function silently falls through to the `RuntimeError` at runtime. The type checker cannot see the gap because `RuntimeError` is not understood as an exhaustiveness assertion.
+
+**Incorrect (plain `assert False` — vanishes under `-O`):**
+
+```python
+def process_step(step: Step) -> Result:
+    if isinstance(step, InitStep): return init()
+    if isinstance(step, RunStep):  return run()
+    if isinstance(step, DoneStep): return done()
+    assert False, f"unhandled: {step!r}"  # stripped under -O; checker doesn't narrow
+```
+
+Under `python -O`, the assertion compiles to nothing and the function falls off the end with `None` (a worse failure). Type checkers also do not treat plain `assert False` as a guaranteed-unreachable signal in the same way as `assert_never`.
+
+**Correct (`assert_never` — type error if the union grows, runtime error if reached):**
+
+```python
+from typing import assert_never
+
+def process_step(step: Step) -> Result:
+    if isinstance(step, InitStep): return init()
+    if isinstance(step, RunStep):  return run()
+    if isinstance(step, DoneStep): return done()
+    assert_never(step)  # pyright/mypy: error if Step grows a new variant
+```
+
+If `Step` later becomes `InitStep | RunStep | DoneStep | PausedStep`, the checker reports that `step` is `PausedStep` at the `assert_never` call — the build breaks before the code ships.
+
+**Use with `match`/`case` the same way:**
 
 ```python
 from typing import assert_never
@@ -1904,36 +2623,19 @@ def process_step(step: Step) -> Result:
         case InitStep(): return init()
         case RunStep():  return run()
         case DoneStep(): return done()
-        case _: assert_never(step)  # type error at check time if new variant added
+        case _:
+            assert_never(step)
 ```
 
-`assert_never(step)` is specifically designed for this — the checker will raise a type error if `Step` grows a new variant and the match isn't updated.
+**Where `assert_never` belongs:**
 
-**Use `assert` for preconditions the checker can't express:**
+- Closed sums: `Literal` unions, sealed dataclass hierarchies, discriminated unions
+- Enum dispatch where every member must be handled
+- Any place where "we covered every case" is a property the checker should enforce
 
-```python
-def binary_search(items: list[int], target: int) -> int:
-    assert items == sorted(items), "binary_search requires sorted input"
-    ...
-```
+**Backport:** `typing.assert_never` is available from Python 3.11. On older versions, import from `typing_extensions` instead — the semantics are identical and both static checkers recognize either source.
 
-This fails fast in development; in production with `-O`, asserts are stripped — which is appropriate because by then the invariant is trusted.
-
-**When to raise an exception instead:**
-
-- The caller could reasonably recover (`FileNotFoundError`, `ValidationError`)
-- The input came from an untrusted boundary (user input, external API)
-- The failure mode is meaningful to the caller (`PermissionError`, `TimeoutError`)
-
-**When to `assert`:**
-
-- "This can't happen if the rest of the code is correct"
-- Internal invariants the checker can't fully enforce
-- Sanity checks during development
-
-If the condition *can* happen, make it a real exception with a meaningful type. If it genuinely shouldn't happen, `assert` it.
-
-### 4.8 Use raise ... from to Preserve Exception Causality
+### 4.10 Use raise ... from to Preserve Exception Causality
 
 **Impact: MEDIUM (keeps the original traceback visible for debugging)**
 
@@ -1985,7 +2687,110 @@ The user-facing error is clean (`ValueError: invalid timestamp: 'abc'`) without 
 
 Default to `from original` when translating between exception types. Reach for `from None` when the internal cause is noise to the caller.
 
-### 4.9 Validate Input at System Boundaries
+### 4.11 Use with / async with for Resource Lifetimes
+
+**Impact: HIGH (deterministic cleanup even on exceptions)**
+
+Any object that owns a finite resource — file handles, network sockets, database connections, locks, temporary directories, HTTP clients, GPU contexts — should be acquired with `with` (or `async with`). The context-manager protocol guarantees `__exit__` runs even when the body raises, so cleanup happens deterministically. Manual `close()` calls forget to fire on exceptions, leak resources under failure, and are easy to misorder during refactors.
+
+The same applies to async resources: `async with` exists for `aiohttp` sessions, `httpx.AsyncClient`, `asyncio.Lock`, `anyio` task groups, and async DB drivers. Use it.
+
+**Incorrect (manual close — leaks on exception):**
+
+```python
+def write_report(path: Path, rows: list[Row]) -> None:
+    f = path.open("w")
+    for row in rows:
+        f.write(format_row(row))   # if this raises, f is never closed
+    f.close()
+```
+
+If `format_row` raises midway, `f.close()` never runs. The handle leaks, the file may be left in a partially-written state, and on Windows the path is locked until garbage collection.
+
+**Incorrect (try/finally — works but verbose; the language gave you `with` for a reason):**
+
+```python
+def write_report(path: Path, rows: list[Row]) -> None:
+    f = path.open("w")
+    try:
+        for row in rows:
+            f.write(format_row(row))
+    finally:
+        f.close()
+```
+
+`with` collapses this to one line and removes the chance of forgetting `try`/`finally` next time.
+
+**Correct (`with` — close runs on success, exception, or early return):**
+
+```python
+def write_report(path: Path, rows: list[Row]) -> None:
+    with path.open("w") as f:
+        for row in rows:
+            f.write(format_row(row))
+```
+
+**Resources that must be acquired with a context manager:**
+
+- **Files:** `open(...)`, `tempfile.TemporaryDirectory()`, `tempfile.NamedTemporaryFile()`
+- **Locks:** `threading.Lock()`, `threading.RLock()`, `asyncio.Lock()`
+- **Network clients:** `httpx.Client()`, `httpx.AsyncClient()`, `aiohttp.ClientSession()`
+- **Database connections / sessions:** `sqlite3.connect()`, SQLAlchemy `Session()`, async DB drivers
+- **Subprocess pipes:** `subprocess.Popen` (3.2+ supports `with`)
+- **Anything from `contextlib`:** `redirect_stdout`, `suppress`, `chdir` (3.11+), `closing()`
+
+**Async clients use `async with`:**
+
+```python
+import httpx
+
+async def fetch_user(user_id: str) -> User:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"/users/{user_id}")
+        return User.model_validate_json(response.content)
+```
+
+`async with` runs `__aexit__` even if `await client.get(...)` raises or the task is cancelled.
+
+**Stack multiple resources with `contextlib.ExitStack` (or one `with` statement):**
+
+```python
+from contextlib import ExitStack
+
+def merge_files(inputs: list[Path], output: Path) -> None:
+    with ExitStack() as stack:
+        out = stack.enter_context(output.open("w"))
+        ins = [stack.enter_context(p.open()) for p in inputs]
+        for src in ins:
+            for line in src:
+                out.write(line)
+```
+
+`ExitStack` closes all resources in reverse order, even if one of the `enter_context` calls raises.
+
+**Write your own with `@contextmanager`:**
+
+```python
+from contextlib import contextmanager
+from collections.abc import Iterator
+
+@contextmanager
+def acquire_lease(resource_id: str) -> Iterator[Lease]:
+    lease = lease_service.acquire(resource_id)
+    try:
+        yield lease
+    finally:
+        lease_service.release(lease.id)
+
+with acquire_lease("worker-42") as lease:
+    do_work(lease)
+```
+
+Use the async variant `@contextlib.asynccontextmanager` for resources awaited during acquisition or release.
+
+**Heuristic:** if you find yourself writing `try` / `finally` to call `close()`, `release()`, `disconnect()`, or `unlink()`, you almost certainly want `with` instead.
+
+### 4.12 Validate Input at System Boundaries
 
 **Impact: HIGH (fails fast and prevents bad data from spreading)**
 
@@ -2377,11 +3182,13 @@ def classify(n: int) -> str:
 
 **Rule of thumb:** if you're checking "is this valid?" and returning an error on the no-branch, guard-clause it. If you're splitting between two equal outcomes, `if/else` is fine.
 
-### 5.6 Use @cached_property for Expensive Derived Attributes
+### 5.6 Use @cached_property Only When the Instance Supports It
 
-**Impact: MEDIUM (defers computation and avoids recomputation)**
+**Impact: MEDIUM (defers work safely; misuse causes races and silent staleness)**
 
-When an attribute is computed from other fields, is expensive, and doesn't change over the object's lifetime, `@cached_property` is the right tool. It defers computation until first access and caches the result — avoiding both wasted work when the attribute is never used and repeated work when it's used many times.
+`@cached_property` is the right tool when the cached value is **derived from effectively immutable inputs**, the getter is **idempotent**, the class **has a writable `__dict__`**, and the instance is not shared across threads racing on first access. Outside that envelope, the convenience masks real bugs: stale caches when inputs mutate, `TypeError` on `__slots__` classes that omit `__dict__`, and duplicated computation when two threads hit the property simultaneously.
+
+The standard library docs are explicit about all of this. Read them once before adding the decorator.
 
 **Incorrect (plain method — recomputes on every call):**
 
@@ -2396,7 +3203,7 @@ class Report:
         return compute_stats(self.rows)
 ```
 
-Every call re-walks `self.rows`. If the caller invokes `report.summary_stats()` ten times in a function, you pay ten times.
+Every call re-walks `self.rows`. If a caller invokes `report.summary_stats()` ten times, you pay ten times.
 
 **Incorrect (eager computation in `__post_init__`):**
 
@@ -2411,40 +3218,78 @@ class Report:
 
 You pay at construction time whether or not the caller ever reads `stats`.
 
-**Correct (`@cached_property` — lazy and cached):**
+**Incorrect (`@cached_property` on mutable inputs — silent staleness):**
 
 ```python
 from functools import cached_property
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class Report:
-    rows: list[Row]
+    rows: list[Row] = field(default_factory=list)  # mutable; callers can append
+
+    @cached_property
+    def summary_stats(self) -> Stats:
+        return compute_stats(self.rows)
+
+r = Report()
+r.summary_stats          # caches based on empty rows
+r.rows.append(new_row)   # mutates input
+r.summary_stats          # still the old cached Stats — stale, no warning
+```
+
+The cache lives in `r.__dict__["summary_stats"]`. Mutating `rows` does not invalidate it.
+
+**Incorrect (`@cached_property` on a `__slots__` class with no `__dict__`):**
+
+```python
+from functools import cached_property
+
+class Point:
+    __slots__ = ("x", "y")  # no __dict__
+
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+
+    @cached_property
+    def magnitude(self) -> float:
+        return (self.x ** 2 + self.y ** 2) ** 0.5
+
+Point(3, 4).magnitude
+# TypeError: cannot use cached_property instance without the underlying attribute
+# (no '__dict__' attribute on 'Point' to cache 'magnitude')
+```
+
+`cached_property` writes the result into `instance.__dict__`. If the class doesn't have one, the call raises at first access. Either add `"__dict__"` to `__slots__` or use a different caching strategy (`@functools.lru_cache` on a top-level function, an explicit `_cache` field, etc.).
+
+**Correct (lazy and cached, with the inputs effectively immutable):**
+
+```python
+from dataclasses import dataclass, field
+from functools import cached_property
+
+@dataclass(frozen=True)
+class Report:
+    rows: tuple[Row, ...]  # immutable container; cannot be mutated after construction
 
     @cached_property
     def summary_stats(self) -> Stats:
         return compute_stats(self.rows)
 ```
 
-First access runs `compute_stats`; subsequent accesses return the cached result from `self.__dict__`. If no caller reads `summary_stats`, no work happens.
+First access runs `compute_stats`; subsequent accesses return the cached result. Because `rows` is a frozen field of an immutable container, the cache cannot go stale.
 
-**Caveats:**
+**Caveats to keep in mind:**
 
-- **Mutability:** if `self.rows` changes after the property is accessed, the cached value is stale. Use `@cached_property` only when the dependencies are effectively immutable.
-- **Equality / hashing:** the cache lives in `__dict__`, so it persists across `copy()` unless you clear it. Include `compare=False` on the cache field if using dataclass comparisons.
-- **`@property` is still right for cheap derivations** — accessor-like computations (`full_name`, `is_valid`) don't need caching and shouldn't use it.
+- **Threading:** the docs warn that `cached_property` is not thread-safe. If two threads access the property for the first time at the same time, the getter may run twice. Use a lock, `functools.lru_cache` on a module-level function, or a one-shot `__post_init__` if the work must happen exactly once.
+- **Mutability:** if any input the getter reads can change after first access, the cache is wrong. Make the inputs frozen, or stick with a plain method/`@property`.
+- **Idempotency:** the getter must produce the same value for the same instance every time. No randomness, no time-dependence, no I/O whose result varies.
+- **`__slots__`:** the class must keep `__dict__` available. Slot-only classes need `"__dict__"` in `__slots__`, or skip the decorator.
+- **Equality / hashing:** the cached value lands in `__dict__`. Dataclass `eq=True` won't include it (only declared fields), but `copy.copy` carries the cache over — clear it manually if the copy's inputs differ.
+- **`@property` is still right for cheap derivations** — accessor-like computations (`full_name`, `is_valid`) don't need caching.
 
-**Use `functools.lru_cache` for module-level pure functions:**
-
-```python
-from functools import lru_cache
-
-@lru_cache(maxsize=256)
-def parse_version(s: str) -> Version:
-    ...
-```
-
-`@cached_property` is the instance-method equivalent.
+**For module-level pure functions, use `functools.lru_cache` / `functools.cache` instead** (see `perf-lru-cache-pure-fns`). `@cached_property` is the per-instance equivalent — and only a good fit when the instance meets every condition above.
 
 ### 5.7 Use Comprehensions Over for+append Loops
 
@@ -2815,6 +3660,8 @@ Even for the truly-one-shot case, a module-level constant is usually clearer tha
 
 **Impact: MEDIUM (avoids repeated schema construction)**
 
+> **Applicability:** this rule is specific to Pydantic v2's `TypeAdapter`. The same principle applies to any object whose constructor does real work (`json.JSONDecoder` with custom hooks, `msgpack.Packer`, compiled templates) — the Pydantic example is the canonical case.
+
 `pydantic.TypeAdapter` does real work on construction — it builds the validation schema for the target type. Inside a hot function, every call rebuilds it. Create it once at module scope and reuse.
 
 **Incorrect (rebuilt on every call):**
@@ -2873,107 +3720,126 @@ def _adapter_for(model_type: type) -> TypeAdapter:
 
 Now each distinct `model_type` gets its adapter built once.
 
-### 6.5 Use Generators for Streaming Iteration
+### 6.5 Prefer Tuple Syntax in isinstance() Only on Profiled Hot Paths
 
-**Impact: MEDIUM (constant memory instead of O(n))**
+**Impact: LOW (tiny per-call savings; only relevant in tight loops)**
 
-When you're iterating through values and only need them one at a time, a generator uses constant memory. Materializing to a list holds every intermediate value in memory — fine for 100 items, a problem for 100 million.
+Both `isinstance(x, (A, B, C))` and `isinstance(x, A | B | C)` are correct and supported in Python 3.10+. They produce the same result. The tuple form is *marginally* faster on each call because the union form constructs a `types.UnionType` object, but the gap is small enough that it only matters inside loops you've actually profiled. **Do not blanket-rewrite a codebase from union to tuple syntax** — the noise is rarely worth the diff.
 
-**Incorrect (materializes a full list just to iterate):**
+This is a micro-optimization, not a correctness rule. Apply it only when:
+
+1. The check is inside a measured hot path (a tight loop, called millions of times per request, etc.)
+2. You have profiling data showing `isinstance` is a meaningful share of the time
+3. You'd otherwise reach for a more invasive change (rewriting the dispatch, caching results)
+
+In normal code, write whichever reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
+
+**Incorrect (rewriting `A | B` to `(A, B)` everywhere as a stylistic crusade):**
 
 ```python
-def process_log_lines(path: Path) -> int:
-    lines = path.read_text().splitlines()        # loads entire file
-    parsed = [parse_line(line) for line in lines]  # and a second full list
-    matching = [p for p in parsed if p.level == "ERROR"]  # and a third
+# A drive-by PR that flips every isinstance() in the codebase.
+def is_numeric(x: object) -> bool:
+    return isinstance(x, (int, float))   # was: isinstance(x, int | float)
+```
+
+The diff is pure churn. Annotations elsewhere use `int | float`; the inconsistency makes the codebase harder to read and the savings are imperceptible outside hot paths.
+
+**Correct (apply only on a measured hot path, with a named module-level tuple):**
+
+```python
+# This validator runs once per row across ~10M rows in the ETL job — profiled.
+_PRIMITIVE_TYPES = (int, float, str, bool)
+
+def is_primitive(x: object) -> bool:
+    return isinstance(x, _PRIMITIVE_TYPES)
+```
+
+Caching the tuple at module scope and giving it a clear name documents the intent ("this check is hot"). Anywhere else, `isinstance(x, int | float)` is fine.
+
+**Do not rewrite for style alone.** A diff that flips `isinstance(x, A | B)` to `isinstance(x, (A, B))` across a codebase is pure churn — you lose the visual symmetry with type annotations and gain a few microseconds on a path that runs once.
+
+**Annotations are unaffected.** In type annotations, `X | Y` is the modern form (PEP 604). The tuple form is only relevant inside `isinstance()` / `issubclass()` calls — and only on hot paths.
+
+### 6.6 Stream with Generators When Memory or First-Result Latency Matters
+
+**Impact: MEDIUM (bounded memory and lazy evaluation for large or infinite sequences)**
+
+Generators trade materialization for laziness: they yield one value at a time, hold no intermediate list, and let the caller stop early. This is a **memory and streaming** rule, not a "generators are categorically better than lists" rule. When you need every result anyway, iterate the sequence more than once, want random access, or want to sort it — a list comprehension is the right tool, often clearer and sometimes faster (no `next()` overhead per element).
+
+**Reach for a generator when:**
+
+- The input is large enough that holding it twice in memory is a problem
+- The input is unbounded (infinite stream, line-by-line file read)
+- The consumer can stop early (`any()`, `next()`, `break`)
+- The pipeline has multiple stages that would otherwise materialize between each
+
+**Reach for a list (or list comprehension) when:**
+
+- You need `len()` before iterating
+- You iterate the same sequence more than once
+- You need random access (`items[5]`)
+- You'll sort the whole sequence anyway (sort materializes)
+- The data is small and a list comprehension reads more clearly
+
+**Incorrect (materializes a multi-GB file for a count — OOMs at scale):**
+
+```python
+def count_errors(path: Path) -> int:
+    lines = path.read_text().splitlines()                    # full file in memory
+    parsed = [parse_line(line) for line in lines]            # second full copy
+    matching = [p for p in parsed if p.level == "ERROR"]     # third full copy
     return len(matching)
 ```
 
-Three full copies of the data in memory at once. For a 10GB log file, this OOMs.
+For a 10GB log file, this OOMs. Three copies of the same data are alive at once.
 
-**Correct (streaming):**
+**Correct (streaming — constant memory regardless of file size):**
 
 ```python
-def process_log_lines(path: Path) -> int:
+def count_errors(path: Path) -> int:
     with path.open() as f:
-        count = 0
-        for line in f:                          # iterator over lines
-            parsed = parse_line(line)
-            if parsed.level == "ERROR":
-                count += 1
-        return count
+        return sum(1 for line in f if parse_line(line).level == "ERROR")
 ```
 
-One line at a time. Constant memory regardless of file size.
+One line at a time. Constant memory.
 
 **Generator expressions for pipelines:**
 
 ```python
 with path.open() as f:
-    parsed = (parse_line(line) for line in f)           # generator
-    errors = (p for p in parsed if p.level == "ERROR")  # generator
-    count = sum(1 for _ in errors)                       # reduces without materializing
+    parsed = (parse_line(line) for line in f)
+    errors = (p for p in parsed if p.level == "ERROR")
+    count = sum(1 for _ in errors)
 ```
 
 Each stage yields one value at a time; nothing is held in memory.
 
-**When to materialize:**
-
-- You need `len()` before iterating (generators don't have a length)
-- You iterate the same sequence multiple times (generators exhaust)
-- You need random access (`items[5]`) — generators are sequential only
-- You need to sort the whole sequence (sort requires materialization anyway)
-
-**`yield` in functions for custom generators:**
+**Lists are the right call when you'll re-iterate:**
 
 ```python
-def read_chunks(path: Path, size: int = 8192) -> Iterator[bytes]:
-    with path.open("rb") as f:
-        while chunk := f.read(size):
-            yield chunk
+# Generator would be wrong here — `users` is iterated twice.
+users = [u for u in load_users() if u.active]
+print(f"{len(users)} active users")
+for user in users:
+    notify(user)
 ```
 
-`yield` builds a generator function — the caller iterates lazily.
+A generator would exhaust on the first iteration and the second loop would run zero times — a real bug, not a performance issue.
 
-**`itertools` is your friend:**
-
-`chain`, `islice`, `takewhile`, `dropwhile`, `tee`, `groupby` — all streaming. Use them instead of slicing/filtering materialized lists.
-
-### 6.6 Use Tuple Syntax in isinstance() Checks
-
-**Impact: LOW (tuple syntax is measurably faster than union syntax)**
-
-`isinstance(x, (A, B, C))` and `isinstance(x, A | B | C)` both work. The tuple form is faster at runtime because the union form constructs a `types.UnionType` every call. For hot paths, prefer the tuple.
-
-**Incorrect (union syntax has allocation overhead):**
+**Lists are also fine when the data is small:**
 
 ```python
-def is_primitive(x: object) -> bool:
-    return isinstance(x, int | float | str | bool)  # builds a union type each call
+# 50 config entries, used once. A generator buys nothing here.
+ports = [c.port for c in configs if c.enabled]
 ```
 
-**Correct (tuple has no per-call overhead):**
+Don't replace small list comprehensions with generators on stylistic grounds.
 
-```python
-def is_primitive(x: object) -> bool:
-    return isinstance(x, (int, float, str, bool))
-```
+**`itertools` for streaming pipelines:**
 
-Both forms are semantically equivalent. The tuple version is faster because Python constructs the union type on every call (in older versions) or does extra work comparing against it (in newer versions).
+`chain`, `islice`, `takewhile`, `dropwhile`, `tee`, `groupby` — all yield lazily. Reach for them when a pipeline is naturally streaming; skip them when the data already fits in memory and a comprehension is clearer.
 
-**When the difference matters:**
-
-- Called many times per second in a hot path
-- Inside a tight inner loop
-
-**When it doesn't matter:**
-
-- Called a few times per request
-- Rare code paths
-
-**Note on annotations vs. runtime checks:** the union syntax (`X | Y`) is idiomatic in type annotations and has zero cost there (annotations aren't evaluated at runtime with `from __future__ import annotations`). The tuple form is only better for the specific case of `isinstance()` calls — other places `X | Y` appears, prefer the union syntax.
-
-**Apply consistently** — it's a simple swap, and codebases that use both forms interchangeably make profiling results less predictable. Pick the tuple form once for all `isinstance` checks and move on.
+**Heuristic:** ask "what's the worst-case size of this sequence, and does the consumer touch each element exactly once?" If the answer is "large" and "yes," use a generator. Otherwise, write whichever reads more clearly — usually a list comprehension.
 
 ### 6.7 Use functools.lru_cache for Pure Functions
 
@@ -3564,7 +4430,118 @@ def export_to_parquet(data: list[dict], path: Path) -> None:
 
 Use module-scope for deps the module's public classes require. Use function-scope for features gated behind specific function calls.
 
-### 8.2 No Duplicate Imports
+### 8.2 Keep Modules Cheap to Import
+
+**Impact: MEDIUM (faster CLIs, faster tests, faster worker startup)**
+
+Importing a module should do as little as possible. Anything at module top-level — opening files, reading environment variables, building large data structures, connecting to databases, registering global handlers, hitting the network — runs every time *anything* in that module is imported. That cost compounds across CLIs (cold-start latency users feel), tests (collection time), worker pools (per-process startup), and serverless functions (cold-start time billed). Heavy import-time side effects also make modules hard to mock and hard to import in the wrong environment.
+
+Push side effects out of module scope into **functions, factories, lazy properties, or `__init__` methods** that callers invoke explicitly.
+
+**Incorrect (network call at import time):**
+
+```python
+# config.py
+import requests
+
+CONFIG = requests.get("https://config.example.com/v1").json()  # runs on import
+DB_URL = CONFIG["db_url"]
+```
+
+Importing `config` (or anything that imports it transitively) makes a network call. Tests that don't need config still pay. Offline CI breaks. Cold starts add a request worth of latency.
+
+**Incorrect (heavy initialization at import):**
+
+```python
+# embeddings.py
+import torch
+from sentence_transformers import SentenceTransformer
+
+MODEL = SentenceTransformer("all-MiniLM-L6-v2")  # 90 MB download + GPU init
+```
+
+Anyone who imports `embeddings` for a type, a constant, or a single helper triggers a 90 MB download and GPU init. The `--help` of a CLI takes seconds to render.
+
+**Incorrect (env-dependent failures at import):**
+
+```python
+import os
+
+API_KEY = os.environ["MY_API_KEY"]   # KeyError on import if unset
+```
+
+Now you cannot import this module to read its docstring without `MY_API_KEY` set.
+
+**Correct (lazy — pay only when the feature runs):**
+
+```python
+# config.py
+from functools import cache
+import requests
+
+@cache
+def get_config() -> dict[str, object]:
+    return requests.get("https://config.example.com/v1").json()
+
+def db_url() -> str:
+    return get_config()["db_url"]
+```
+
+`@cache` makes the first call do the work and subsequent calls hit the cache — same effective behavior as a module constant, but only when something actually asks for it.
+
+**Correct (lazy — model loaded on first use):**
+
+```python
+# embeddings.py
+from functools import cache
+
+@cache
+def get_model() -> "SentenceTransformer":
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+def embed(text: str) -> list[float]:
+    return get_model().encode(text).tolist()
+```
+
+The heavy import lives inside the function (see `imports-top-of-file` for when inline imports are okay). The model loads on first `embed`, not on `import`.
+
+**Correct (env read at use, with a clear error):**
+
+```python
+import os
+
+def api_key() -> str:
+    key = os.environ.get("MY_API_KEY")
+    if not key:
+        raise RuntimeError("MY_API_KEY is required to call this API")
+    return key
+```
+
+Now the module imports anywhere, and the missing env variable surfaces with a useful message at the call site.
+
+**What is fine to do at import time:**
+
+- Pure-Python constants: `MAX_RETRIES = 5`, `_NAME_RE = re.compile(r"...")` (compile is cheap and amortizes)
+- Class and function definitions
+- Cheap, deterministic, in-process work (registering a dataclass, creating a small lookup dict)
+- Standard-library imports
+
+**What to push out of import time:**
+
+- Network or disk I/O
+- Subprocess launches
+- Loading large models, datasets, ML weights
+- Reading environment variables that may be missing
+- Connecting to databases or message queues
+- Registering signal handlers, atexit hooks, observability sinks
+- Heavy third-party imports the module doesn't use unconditionally
+
+**Test for it.** Run `python -c "import yourpackage"` with `--time` or in `cProfile`. If a single import takes more than ~100 ms or makes any network call, find what's running at module scope and defer it.
+
+**Heuristic:** if the work needs to happen *exactly once* per process, write a `@cache`-decorated function and call it on demand. If it needs to happen *every* call, write a regular function. Module-scope side effects are almost never the right choice — they're "every import" by accident, not "once per process" by design.
+
+### 8.3 No Duplicate Imports
 
 **Impact: LOW (prevents confusion and redundant work)**
 
@@ -3622,7 +4599,7 @@ Add to pre-commit or CI.
 
 Reviewing the imports block after any merge or mass edit catches these before they land.
 
-### 8.3 Place Imports at the Top of the File
+### 8.4 Place Imports at the Top of the File
 
 **Impact: LOW-MEDIUM (makes dependencies visible at a glance)**
 
@@ -3698,7 +4675,7 @@ This is the narrow exception — think twice before using it. See `imports-optio
 
 Outside these cases, top-of-file is the rule.
 
-### 8.4 Remove Unused Imports
+### 8.5 Remove Unused Imports
 
 **Impact: LOW-MEDIUM (prevents accidental dependencies and reduces noise)**
 
@@ -3767,7 +4744,7 @@ If an import is used only in annotations, move it under `if TYPE_CHECKING:` (see
 
 Outside those cases: delete.
 
-### 8.5 Scope Helpers and Constants to Their Usage Site
+### 8.6 Scope Helpers and Constants to Their Usage Site
 
 **Impact: LOW-MEDIUM (reduces namespace pollution and clarifies intent)**
 
@@ -3831,8 +4808,17 @@ def summarize(text: str) -> str:
 ## References
 
 - https://docs.python.org/3/library/typing.html
+- https://docs.python.org/3/library/dataclasses.html
+- https://docs.python.org/3/library/exceptions.html
+- https://docs.python.org/3/reference/simple_stmts.html#the-assert-statement
 - https://docs.pydantic.dev/
 - https://mypy.readthedocs.io/
+- https://docs.astral.sh/ruff/
+- https://peps.python.org/pep-0008/
 - https://peps.python.org/pep-0544/
+- https://peps.python.org/pep-0604/
+- https://peps.python.org/pep-0615/
+- https://peps.python.org/pep-0661/
 - https://peps.python.org/pep-0695/
+- https://peps.python.org/pep-0702/
 - https://github.com/pydantic/pydantic-ai

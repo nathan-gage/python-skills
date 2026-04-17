@@ -58,13 +58,15 @@ Design the interface for this service layer
 ## Skill Structure
 
 Each skill contains:
-- `SKILL.md` - Entrypoint loaded into agent context
-- `README.md` - Human-facing overview
-- `metadata.json` - Version, abstract, references
-- `AGENTS.md` - Compiled document with all rules expanded
-- `rules/` - Individual rule files (one per rule)
+- `SKILL.md` - Entrypoint loaded into agent context (quick reference)
+- `README.md` - Human-facing overview and authoring workflow
+- `metadata.json` - Version, abstract, references, Python version floor
+- `AGENTS.md` - (generated) Compiled document with all rules expanded
+- `test-cases.json` - (generated) LLM evaluation data extracted from rule examples
+- `rules/` - Individual rule files (one per rule), plus `_sections.md` and `_template.md`
+- `src/` - Build, validate, and extract-tests scripts (`build.py`, `validate.py`, `extract_tests.py`)
 
-See `AGENTS.md` at the repo root for guidance on authoring new rules or sections.
+`AGENTS.md` and `test-cases.json` are generated outputs — do not edit them by hand. See the per-skill README and `AGENTS.md` at the repo root for guidance on authoring new rules or sections.
 
 ## License
 

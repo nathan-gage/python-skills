@@ -3,6 +3,7 @@ title: Scope Helpers and Constants to Their Usage Site
 impact: LOW-MEDIUM
 impactDescription: reduces namespace pollution and clarifies intent
 tags: structure, scope, helpers
+references: https://peps.python.org/pep-0008/#imports
 ---
 
 ## Scope Helpers and Constants to Their Usage Site

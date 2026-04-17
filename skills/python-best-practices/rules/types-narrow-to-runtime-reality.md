@@ -3,6 +3,7 @@ title: Narrow Type Signatures to Runtime Reality
 impact: MEDIUM
 impactDescription: eliminates unreachable branches and false permissiveness
 tags: types, narrowing, unions, design
+references: https://docs.python.org/3/library/typing.html#typing.assert_never, https://typing.python.org/en/latest/spec/narrowing.html
 ---
 
 ## Narrow Type Signatures to Runtime Reality

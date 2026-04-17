@@ -3,6 +3,7 @@ title: Remove Unused Imports
 impact: LOW-MEDIUM
 impactDescription: prevents accidental dependencies and reduces noise
 tags: imports, dead-code, cleanup
+references: https://docs.astral.sh/ruff/rules/unused-import/
 ---
 
 ## Remove Unused Imports

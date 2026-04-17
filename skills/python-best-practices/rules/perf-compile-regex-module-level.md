@@ -3,6 +3,7 @@ title: Compile Static Regex Patterns at Module Level
 impact: MEDIUM
 impactDescription: avoids recompilation overhead on every call
 tags: perf, regex, module-level
+references: https://docs.python.org/3/library/re.html#re.compile
 ---
 
 ## Compile Static Regex Patterns at Module Level

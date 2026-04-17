@@ -3,6 +3,7 @@ title: Use Discriminated Unions Over Optional Bags
 impact: CRITICAL
 impactDescription: makes impossible states unrepresentable
 tags: data, types, unions, modeling
+references: https://docs.python.org/3/library/typing.html#typing.Literal, https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions
 ---
 
 ## Use Discriminated Unions Over Optional Bags
@@ -55,6 +56,6 @@ PaymentState = PaymentIdle | PaymentProcessing | PaymentSettled
 
 Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on the variants that have it, and impossible combinations (idle with a transaction ID, settled without a timestamp) are unrepresentable.
 
-**With Pydantic:** use `Field(discriminator="status")` and a `status: Literal[...]` tag on each variant — Pydantic will validate and narrow automatically.
+**With Pydantic** *(applicability: pydantic)*: use `Field(discriminator="status")` and a `status: Literal[...]` tag on each variant — Pydantic will validate and narrow automatically.
 
 **Null over sentinels:** don't invent `"none"` action values. `pending_action: PendingAction | None` beats `pending_action: Literal["none", "confirm-address", "select-shipping"]`. Absence is not an action.

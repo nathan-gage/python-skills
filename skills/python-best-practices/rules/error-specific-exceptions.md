@@ -3,11 +3,12 @@ title: Catch Specific Exception Types
 impact: HIGH
 impactDescription: prevents masking unrelated bugs
 tags: error, exceptions, defensive
+references: https://docs.python.org/3/tutorial/errors.html#handling-exceptions, https://docs.python.org/3/library/exceptions.html#exception-hierarchy
 ---
 
 ## Catch Specific Exception Types
 
-`except Exception:` catches everything — including the bugs you wanted to see. Agents default to broad handlers because "we should be resilient"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle.
+Catch the specific exception types you actually intend to handle. A broad `except Exception:` catches every regular error in your codebase, including bugs you wanted to see. (For the even worse `except:` with no type at all — which also catches `KeyboardInterrupt` and `SystemExit` — see `error-no-bare-except`.) Agents default to broad handlers because "we should be resilient"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle.
 
 **Incorrect (bare except catches unrelated errors):**
 

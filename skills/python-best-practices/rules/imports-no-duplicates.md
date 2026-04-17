@@ -3,6 +3,7 @@ title: No Duplicate Imports
 impact: LOW
 impactDescription: prevents confusion and redundant work
 tags: imports, duplicates, cleanup
+references: https://docs.astral.sh/ruff/rules/duplicate-bindings/
 ---
 
 ## No Duplicate Imports

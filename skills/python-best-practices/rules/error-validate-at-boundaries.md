@@ -3,6 +3,7 @@ title: Validate Input at System Boundaries
 impact: HIGH
 impactDescription: fails fast and prevents bad data from spreading
 tags: error, validation, boundaries
+references: https://docs.pydantic.dev/latest/concepts/validators/
 ---
 
 ## Validate Input at System Boundaries

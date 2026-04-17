@@ -1,10 +1,10 @@
-# Python Best Practices
+# Python Skills
 
-An agent skill for Python software engineering. Codifies review-derived rules that keep Python codebases type-safe, well-composed, and maintainable — especially when much of the code is written by AI agents.
+Agent skills for Python software engineering. Codifies review-derived rules that keep Python codebases type-safe, well-composed, and maintainable — especially when much of the code is written by AI agents.
 
 Follows the [Agent Skills](https://agentskills.io/) format and works with Claude Code, Claude.ai, Cursor, and any harness that loads `SKILL.md` frontmatter.
 
-## The Skill
+## Skills
 
 ### python-best-practices
 

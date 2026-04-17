@@ -4,9 +4,9 @@ This file provides guidance to AI coding agents (Claude Code, Cursor, Copilot, e
 
 ## Repository Overview
 
-An agent skill for Python software engineering, packaged for use with Claude Code and other agent harnesses. Skills are bundles of instructions and rules that extend an agent's capabilities with domain-specific guidance.
+A collection of agent skills for Python software engineering, packaged for use with Claude Code and other agent harnesses. Skills are bundles of instructions and rules that extend an agent's capabilities with domain-specific guidance.
 
-This skill exists to counteract the failure modes agents fall into when writing Python: reaching for `Any`, stacking optional fields, bypassing the type checker, catching broad exceptions, and repeating logic across call sites. The rules are opinionated, codified from real PR reviews and production experience. This codebase will outlive the agents that write to it — the skill here is the sieve that keeps quality in.
+These skills exist to counteract the failure modes agents fall into when writing Python: reaching for `Any`, stacking optional fields, bypassing the type checker, catching broad exceptions, and repeating logic across call sites. The rules are opinionated, codified from real PR reviews and production experience. This codebase will outlive the agents that write to it — the skills here are the sieve that keeps quality in.
 
 ## Creating a New Skill
 

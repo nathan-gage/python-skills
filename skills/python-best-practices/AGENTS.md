@@ -53,11 +53,12 @@ Comprehensive Python software engineering guidelines designed for AI agents. Con
    - 4.1 [Catch Specific Exception Types](#41-catch-specific-exception-types)
    - 4.2 [Consolidate try/except Blocks with the Same Handler](#42-consolidate-tryexcept-blocks-with-the-same-handler)
    - 4.3 [Inherit New Exceptions from Existing Base Exceptions](#43-inherit-new-exceptions-from-existing-base-exceptions)
-   - 4.4 [Trust Validated State — Skip Redundant Defensive Checks](#44-trust-validated-state-skip-redundant-defensive-checks)
-   - 4.5 [Use !r Format for Identifiers in Error Messages](#45-use-r-format-for-identifiers-in-error-messages)
-   - 4.6 [Use assert for Invariants, Not RuntimeError](#46-use-assert-for-invariants-not-runtimeerror)
-   - 4.7 [Use raise ... from to Preserve Exception Causality](#47-use-raise-from-to-preserve-exception-causality)
-   - 4.8 [Validate Input at System Boundaries](#48-validate-input-at-system-boundaries)
+   - 4.4 [Preserve Asyncio Cancellation Semantics](#44-preserve-asyncio-cancellation-semantics)
+   - 4.5 [Trust Validated State — Skip Redundant Defensive Checks](#45-trust-validated-state-skip-redundant-defensive-checks)
+   - 4.6 [Use !r Format for Identifiers in Error Messages](#46-use-r-format-for-identifiers-in-error-messages)
+   - 4.7 [Use assert for Invariants, Not RuntimeError](#47-use-assert-for-invariants-not-runtimeerror)
+   - 4.8 [Use raise ... from to Preserve Exception Causality](#48-use-raise-from-to-preserve-exception-causality)
+   - 4.9 [Validate Input at System Boundaries](#49-validate-input-at-system-boundaries)
 5. [Code Simplification](#5-code-simplification) — **MEDIUM-HIGH**
    - 5.1 [Extract Helpers After 2+ Occurrences](#51-extract-helpers-after-2-occurrences)
    - 5.2 [Flatten Nested if Statements Into and Conditions](#52-flatten-nested-if-statements-into-and-conditions)
@@ -1699,7 +1700,83 @@ Callers can catch at whichever level of specificity they need. Adding new subtyp
 
 **Use `__init_subclass__` or explicit checks** if you need to prevent direct instantiation of the base — keep the type system as the contract enforcement.
 
-### 4.4 Trust Validated State — Skip Redundant Defensive Checks
+### 4.4 Preserve Asyncio Cancellation Semantics
+
+**Impact: HIGH (avoids hung tasks and false-positive review flags)**
+
+Cancellation in asyncio is delivered by raising `CancelledError` inside the running task. Swallow it and the task hangs past its lifetime; false-flag code that already handles it correctly and you waste review cycles and churn working code.
+
+Two facts do most of the work:
+
+1. On Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception`. So `except Exception:` is cancellation-safe. Do not flag `except Exception:` in an async function with "this swallows cancellation" — cite `error-specific-exceptions` reasons (hides bugs, leaks `str(e)`, obscures observability) instead.
+2. `except BaseException:` **does** catch `CancelledError`. If you catch it, re-raise it.
+
+**Incorrect (catches cancellation, returns as if successful):**
+
+```python
+async def fetch_with_retry() -> Result | None:
+    try:
+        return await upstream.get()
+    except BaseException:          # catches CancelledError
+        logger.warning("fetch failed")
+        return None                # task now "completes" despite being cancelled
+```
+
+**Correct (re-raise cancellation, handle the rest):**
+
+```python
+async def fetch_with_retry() -> Result | None:
+    try:
+        return await upstream.get()
+    except asyncio.CancelledError:
+        raise                      # cancellation must propagate
+    except Exception:
+        logger.warning("fetch failed", exc_info=True)
+        return None
+```
+
+Or just don't use `BaseException`:
+
+```python
+async def fetch_with_retry() -> Result | None:
+    try:
+        return await upstream.get()
+    except Exception:              # CancelledError is BaseException — unaffected
+        logger.warning("fetch failed", exc_info=True)
+        return None
+```
+
+**In anyio / structured-concurrency contexts, use `get_cancelled_exc_class`:**
+
+Trio and anyio replace `CancelledError` with their own class (anyio on trio backend uses `trio.Cancelled`). A narrow catch that hardcodes `asyncio.CancelledError` will miss it. If you need to branch on cancellation explicitly inside an anyio task, use the runtime accessor:
+
+```python
+import anyio
+
+async def do_work() -> None:
+    try:
+        await upstream.get()
+    except anyio.get_cancelled_exc_class():
+        await best_effort_cleanup()
+        raise
+```
+
+**`finally:` runs during cancellation — keep it bounded.**
+
+Cleanup in `finally:` races against the cancellation itself. Don't await operations that can block indefinitely. If a specific cleanup step must complete, wrap it in `asyncio.shield()`:
+
+```python
+async def session() -> None:
+    conn = await open_connection()
+    try:
+        await use(conn)
+    finally:
+        await asyncio.shield(conn.close())  # survives task cancellation
+```
+
+**Review heuristic for `except Exception:` in async code:** flag it for diagnostic precision, client-visible error leaks, or swallowing domain bugs — never for cancellation safety on Python 3.8+. Before claiming otherwise, verify the project's Python version and whether the catch is `Exception` or `BaseException`.
+
+### 4.5 Trust Validated State — Skip Redundant Defensive Checks
 
 **Impact: MEDIUM (removes clutter and improves resilience)**
 
@@ -1758,7 +1835,7 @@ assert config.timeout > 0, "timeout must be positive"
 
 Pick based on whether you want the system to fail or to fall back. Don't do both.
 
-### 4.5 Use !r Format for Identifiers in Error Messages
+### 4.6 Use !r Format for Identifiers in Error Messages
 
 **Impact: MEDIUM (produces consistent, unambiguous messages)**
 
@@ -1797,7 +1874,7 @@ raise KeyError(f"unknown key {key!r} in {registry_name!r}")
 
 **When backticks are preferable:** some codebases use Markdown-style backticks for user-facing messages (CLI output, log lines humans read). Pick one convention per project and stick to it. `!r` is usually right for Python exception messages; backticks are usually right for log strings rendered in docs or notebooks.
 
-### 4.6 Use assert for Invariants, Not RuntimeError
+### 4.7 Use assert for Invariants, Not RuntimeError
 
 **Impact: MEDIUM-HIGH (documents assumptions and fails fast in development)**
 
@@ -1856,7 +1933,7 @@ This fails fast in development; in production with `-O`, asserts are stripped �
 
 If the condition *can* happen, make it a real exception with a meaningful type. If it genuinely shouldn't happen, `assert` it.
 
-### 4.7 Use raise ... from to Preserve Exception Causality
+### 4.8 Use raise ... from to Preserve Exception Causality
 
 **Impact: MEDIUM (keeps the original traceback visible for debugging)**
 
@@ -1908,7 +1985,7 @@ The user-facing error is clean (`ValueError: invalid timestamp: 'abc'`) without 
 
 Default to `from original` when translating between exception types. Reach for `from None` when the internal cause is noise to the caller.
 
-### 4.8 Validate Input at System Boundaries
+### 4.9 Validate Input at System Boundaries
 
 **Impact: HIGH (fails fast and prevents bad data from spreading)**
 

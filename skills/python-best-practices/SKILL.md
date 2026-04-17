@@ -84,6 +84,7 @@ Reference these guidelines when:
 - `error-repr-in-messages` — `f"tool {name!r}"` for identifiers in error text; consistent quoting
 - `error-raise-from-for-chains` — `raise NewErr(...) from original` to preserve causality
 - `error-trust-validated-state` — No defensive re-checks after earlier validation; trust the invariant
+- `error-preserve-cancellation` — `CancelledError` is `BaseException` on 3.8+; don't false-flag `except Exception:` for "swallowing cancellation"
 
 ### 5. Code Simplification (MEDIUM-HIGH)
 

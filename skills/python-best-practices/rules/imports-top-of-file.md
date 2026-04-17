@@ -3,6 +3,7 @@ title: Place Imports at the Top of the File
 impact: LOW-MEDIUM
 impactDescription: makes dependencies visible at a glance
 tags: imports, structure, conventions
+references: https://peps.python.org/pep-0008/#imports
 ---
 
 ## Place Imports at the Top of the File

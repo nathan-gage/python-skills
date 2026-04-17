@@ -1,14 +1,24 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "organization": "Python Best Practices",
   "date": "April 2026",
-  "abstract": "Comprehensive Python software engineering guidelines designed for AI agents. Contains 50+ rules across 8 categories, prioritized by impact from critical (data modeling, type safety) to low (import hygiene). Each rule names the failure mode agents tend toward, shows incorrect and correct code, and explains the payoff. Rules are derived from real PR review patterns and production experience.",
+  "pythonVersion": ">=3.11",
+  "abstract": "Comprehensive Python software engineering guidelines designed for AI agents. 60+ rules across 8 categories, prioritized by impact from critical (data modeling, type safety) to low (import hygiene). Each rule names the failure mode agents tend toward, shows incorrect and correct code, cites primary-source references where the rule depends on language or library behavior, and explains the payoff. Rules assume Python 3.11+ as a baseline; rules that depend on a higher version (e.g., 3.13 for warnings.deprecated) are tagged accordingly.",
   "references": [
     "https://docs.python.org/3/library/typing.html",
+    "https://docs.python.org/3/library/dataclasses.html",
+    "https://docs.python.org/3/library/exceptions.html",
+    "https://docs.python.org/3/reference/simple_stmts.html#the-assert-statement",
     "https://docs.pydantic.dev/",
     "https://mypy.readthedocs.io/",
+    "https://docs.astral.sh/ruff/",
+    "https://peps.python.org/pep-0008/",
     "https://peps.python.org/pep-0544/",
+    "https://peps.python.org/pep-0604/",
+    "https://peps.python.org/pep-0615/",
+    "https://peps.python.org/pep-0661/",
     "https://peps.python.org/pep-0695/",
+    "https://peps.python.org/pep-0702/",
     "https://github.com/pydantic/pydantic-ai"
   ]
 }

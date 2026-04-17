@@ -3,6 +3,7 @@ title: Use TypedDict or Dataclass Instead of dict[str, Any]
 impact: CRITICAL
 impactDescription: restores type-checker coverage over config and payloads
 tags: types, typeddict, dataclass, any
+references: https://docs.python.org/3/library/typing.html#typing.TypedDict, https://docs.pydantic.dev/latest/concepts/models/
 ---
 
 ## Use TypedDict or Dataclass Instead of `dict[str, Any]`

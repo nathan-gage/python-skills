@@ -3,6 +3,7 @@ title: Preserve Asyncio Cancellation Semantics
 impact: HIGH
 impactDescription: avoids hung tasks and false-positive review flags
 tags: error, asyncio, cancellation, anyio
+references: https://docs.python.org/3/library/asyncio-exceptions.html#asyncio.CancelledError, https://docs.python.org/3/library/exceptions.html#BaseException
 ---
 
 ## Preserve Asyncio Cancellation Semantics

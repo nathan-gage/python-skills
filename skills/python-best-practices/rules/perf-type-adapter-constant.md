@@ -2,10 +2,13 @@
 title: Define TypeAdapter Instances at Module Level
 impact: MEDIUM
 impactDescription: avoids repeated schema construction
-tags: perf, pydantic, type-adapter, module-level
+tags: perf, pydantic, type-adapter, module-level, applicability:pydantic
+references: https://docs.pydantic.dev/latest/api/type_adapter/
 ---
 
 ## Define `TypeAdapter` Instances at Module Level
+
+> **Applicability:** this rule is specific to Pydantic v2's `TypeAdapter`. The same principle applies to any object whose constructor does real work (`json.JSONDecoder` with custom hooks, `msgpack.Packer`, compiled templates) — the Pydantic example is the canonical case.
 
 `pydantic.TypeAdapter` does real work on construction — it builds the validation schema for the target type. Inside a hot function, every call rebuilds it. Create it once at module scope and reuse.
 

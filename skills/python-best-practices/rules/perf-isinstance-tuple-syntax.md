@@ -1,40 +1,45 @@
 ---
-title: Use Tuple Syntax in isinstance() Checks
+title: Prefer Tuple Syntax in isinstance() Only on Profiled Hot Paths
 impact: LOW
-impactDescription: tuple syntax is measurably faster than union syntax
-tags: perf, isinstance, micro-optimization
+impactDescription: tiny per-call savings; only relevant in tight loops
+tags: perf, isinstance, micro-optimization, hot-path
+references: https://docs.python.org/3/library/functions.html#isinstance, https://peps.python.org/pep-0604/
 ---
 
-## Use Tuple Syntax in `isinstance()` Checks
+## Prefer Tuple Syntax in `isinstance()` Only on Profiled Hot Paths
 
-`isinstance(x, (A, B, C))` and `isinstance(x, A | B | C)` both work. The tuple form is faster at runtime because the union form constructs a `types.UnionType` every call. For hot paths, prefer the tuple.
+Both `isinstance(x, (A, B, C))` and `isinstance(x, A | B | C)` are correct and supported in Python 3.10+. They produce the same result. The tuple form is *marginally* faster on each call because the union form constructs a `types.UnionType` object, but the gap is small enough that it only matters inside loops you've actually profiled. **Do not blanket-rewrite a codebase from union to tuple syntax** — the noise is rarely worth the diff.
 
-**Incorrect (union syntax has allocation overhead):**
+This is a micro-optimization, not a correctness rule. Apply it only when:
+
+1. The check is inside a measured hot path (a tight loop, called millions of times per request, etc.)
+2. You have profiling data showing `isinstance` is a meaningful share of the time
+3. You'd otherwise reach for a more invasive change (rewriting the dispatch, caching results)
+
+In normal code, write whichever reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
+
+**Incorrect (rewriting `A | B` to `(A, B)` everywhere as a stylistic crusade):**
 
 ```python
-def is_primitive(x: object) -> bool:
-    return isinstance(x, int | float | str | bool)  # builds a union type each call
+# A drive-by PR that flips every isinstance() in the codebase.
+def is_numeric(x: object) -> bool:
+    return isinstance(x, (int, float))   # was: isinstance(x, int | float)
 ```
 
-**Correct (tuple has no per-call overhead):**
+The diff is pure churn. Annotations elsewhere use `int | float`; the inconsistency makes the codebase harder to read and the savings are imperceptible outside hot paths.
+
+**Correct (apply only on a measured hot path, with a named module-level tuple):**
 
 ```python
+# This validator runs once per row across ~10M rows in the ETL job — profiled.
+_PRIMITIVE_TYPES = (int, float, str, bool)
+
 def is_primitive(x: object) -> bool:
-    return isinstance(x, (int, float, str, bool))
+    return isinstance(x, _PRIMITIVE_TYPES)
 ```
 
-Both forms are semantically equivalent. The tuple version is faster because Python constructs the union type on every call (in older versions) or does extra work comparing against it (in newer versions).
+Caching the tuple at module scope and giving it a clear name documents the intent ("this check is hot"). Anywhere else, `isinstance(x, int | float)` is fine.
 
-**When the difference matters:**
+**Do not rewrite for style alone.** A diff that flips `isinstance(x, A | B)` to `isinstance(x, (A, B))` across a codebase is pure churn — you lose the visual symmetry with type annotations and gain a few microseconds on a path that runs once.
 
-- Called many times per second in a hot path
-- Inside a tight inner loop
-
-**When it doesn't matter:**
-
-- Called a few times per request
-- Rare code paths
-
-**Note on annotations vs. runtime checks:** the union syntax (`X | Y`) is idiomatic in type annotations and has zero cost there (annotations aren't evaluated at runtime with `from __future__ import annotations`). The tuple form is only better for the specific case of `isinstance()` calls — other places `X | Y` appears, prefer the union syntax.
-
-**Apply consistently** — it's a simple swap, and codebases that use both forms interchangeably make profiling results less predictable. Pick the tuple form once for all `isinstance` checks and move on.
+**Annotations are unaffected.** In type annotations, `X | Y` is the modern form (PEP 604). The tuple form is only relevant inside `isinstance()` / `issubclass()` calls — and only on hot paths.

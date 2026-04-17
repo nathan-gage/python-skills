@@ -3,6 +3,7 @@ title: Fix Type Errors, Don't Ignore Them
 impact: HIGH
 impactDescription: prevents masked errors from compounding
 tags: types, mypy, pyright, ignore
+references: https://mypy.readthedocs.io/en/stable/error_codes.html, https://microsoft.github.io/pyright/#/comments
 ---
 
 ## Fix Type Errors, Don't Ignore Them

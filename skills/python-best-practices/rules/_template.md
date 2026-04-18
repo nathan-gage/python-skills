@@ -8,38 +8,45 @@ references: https://primary-source-1.example.com, https://primary-source-2.examp
 
 ## Rule Title Here
 
-Brief explanation of the rule and why it matters. One or two sentences. Name the impulse the agent is tempted to take.
+Brief explanation — one or two sentences. Observational: describe the pattern and what it costs. Avoid "the impulse to avoid" or "the temptation of" framing.
 
-**Incorrect (what's wrong with this):**
+**Incorrect:**
 
 ```python
 # Bad code example
 ```
 
-**Correct (what's right about this):**
+**Correct:**
 
 ```python
 # Good code example
 ```
 
-Optional closing paragraph with nuance, edge cases, or references.
+Optional one-paragraph note on nuance, edge cases, or version-specific behavior. Keep it short. Skip if the examples carry the point.
 
 ---
 
 ## Authoring notes
 
-**The `references` field is required when the rule depends on language-version or library behavior.** Link to primary sources — the language reference, library docs, or a PEP. If the rule is a pure judgment call (e.g., a naming preference), `references` may be omitted, but adding one is still encouraged.
+Target body length: 20–40 lines. One Incorrect block, one Correct block, optional note. Cut enumerated "use X when / use Y when" taxonomies — let the example speak.
 
-Examples of when references are required:
+### Impact
 
-- Rule mentions a specific Python version (e.g., 3.10, 3.11, 3.13)
-- Rule cites stdlib behavior (e.g., `assert` semantics under `-O`, `cached_property` thread safety)
-- Rule cites third-party library behavior (Pydantic, mypy, ruff)
-- Rule cites a PEP
+- `CRITICAL` — prevents a real bug class (data corruption, swallowed cancellations, insecure defaults)
+- `HIGH` — meaningful correctness or maintainability win
+- `MEDIUM-HIGH` — noticeable improvement worth enforcing
+- `MEDIUM` — good practice; clarity or drift prevention
+- `LOW-MEDIUM` / `LOW` — style; opportunistic
 
-Examples of when references may be omitted:
+Reserve `CRITICAL` for bug classes you'd block a PR on. If in doubt, pick `MEDIUM`.
 
-- "Use `_prefix` for private helpers" (project convention, no version dependency)
-- "Specific names beat generic names" (taste / readability)
+### References
 
-Keep references to **primary sources**. Blog posts and tutorials drift; PEPs and stdlib docs do not.
+`references` is required when the rule depends on:
+
+- A specific Python version
+- Stdlib behavior with versioned semantics
+- Third-party library behavior (Pydantic, mypy, ruff)
+- A PEP
+
+Link to primary sources. Blog posts drift; PEPs don't.

@@ -1,7 +1,7 @@
 ---
 title: Fix Type Definitions Instead of cast()
-impact: HIGH
-impactDescription: surfaces structural mismatches instead of hiding them
+impact: MEDIUM
+impactDescription: keeps source type definitions honest
 tags: types, cast, design
 ---
 
@@ -57,4 +57,4 @@ def handle_success(result: ApiResponse) -> str:
 
 Even then, `isinstance` or a `TypeGuard` function is usually cleaner. Reserve `cast` for cases where those don't fit.
 
-**Rule of thumb:** if you're tempted to `cast`, first ask whether the source type should be narrower. 8 times out of 10, yes.
+**Rule of thumb:** before reaching for `cast`, ask whether the source type should be narrower. 8 times out of 10, yes.

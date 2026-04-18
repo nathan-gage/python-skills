@@ -1,6 +1,6 @@
 ---
 title: Validate Input at System Boundaries
-impact: HIGH
+impact: MEDIUM
 impactDescription: fails fast and prevents bad data from spreading
 tags: error, validation, boundaries
 references: https://docs.pydantic.dev/latest/concepts/validators/
@@ -8,7 +8,7 @@ references: https://docs.pydantic.dev/latest/concepts/validators/
 
 ## Validate Input at System Boundaries
 
-Validate once, at the edge — not repeatedly in every internal function. Agents tend to sprinkle defensive checks throughout the call chain "in case something got through." Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value.
+Validate once, at the edge — not repeatedly in every internal function. Sprinkling defensive checks throughout the call chain "in case something got through" bloats internals without catching anything a boundary check didn't. Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value.
 
 **Incorrect (validation scattered through every internal function):**
 

@@ -1,6 +1,6 @@
 ---
 title: Trust the Type Checker — Remove Redundant Runtime Checks
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: removes noise and signals confidence in the types
 tags: types, runtime-checks, assertions
 ---

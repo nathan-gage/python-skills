@@ -1,6 +1,6 @@
 ---
 title: Inherit New Exceptions from Existing Base Exceptions
-impact: MEDIUM-HIGH
+impact: MEDIUM
 impactDescription: preserves backward compatibility for callers
 tags: error, exceptions, inheritance, compatibility
 ---

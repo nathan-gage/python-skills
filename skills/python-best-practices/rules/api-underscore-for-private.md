@@ -1,13 +1,13 @@
 ---
 title: Underscore Prefix for Private Names
-impact: HIGH
+impact: LOW-MEDIUM
 impactDescription: signals internal API and limits backward-compat obligations
 tags: api, privacy, public-api
 ---
 
 ## Underscore Prefix for Private Names
 
-Names that start with `_` are internal. Names that don't are public — and public means "backward-compatible forever unless deprecated." Agents tend to leave implementation details public because there's no language-level enforcement; underscore them on the way in, not after they've leaked.
+Names that start with `_` are internal. Names that don't are public — and public means "backward-compatible forever unless deprecated." Without language-level enforcement, implementation details often stay public; underscore them on the way in, not after they've leaked.
 
 **Incorrect (implementation detail treated as public):**
 

@@ -1,13 +1,13 @@
 ---
 title: Drop Redundant Prefixes When Context Is Clear
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: reduces noise and improves readability
 tags: naming, prefixes, conventions
 ---
 
 ## Drop Redundant Prefixes When Context Is Clear
 
-When a field is accessed as `tool_config.tool_description`, the `tool_` prefix adds nothing — the class name already provides that context. Agents tend to repeat the class name in every field ("just to be clear") — the result is noise that makes real information harder to find.
+When a field is accessed as `tool_config.tool_description`, the `tool_` prefix adds nothing — the class name already provides that context. Repeating the class name in every field ("just to be clear") produces noise that makes real information harder to find.
 
 **Incorrect (prefix repeats the class context):**
 

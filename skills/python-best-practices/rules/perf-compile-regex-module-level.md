@@ -1,7 +1,7 @@
 ---
 title: Compile Static Regex Patterns at Module Level
-impact: MEDIUM
-impactDescription: avoids recompilation overhead on every call
+impact: LOW
+impactDescription: marginal outside tight loops; Python's re cache handles most cases
 tags: perf, regex, module-level
 references: https://docs.python.org/3/library/re.html#re.compile
 ---

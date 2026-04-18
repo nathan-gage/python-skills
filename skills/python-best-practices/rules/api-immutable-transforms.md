@@ -1,6 +1,6 @@
 ---
 title: Return New Collections from Transforms
-impact: HIGH
+impact: MEDIUM
 impactDescription: prevents surprising side effects
 tags: api, immutability, mutation, transforms
 ---

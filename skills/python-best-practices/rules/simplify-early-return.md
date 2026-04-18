@@ -1,15 +1,15 @@
 ---
 title: Return Early to Flatten Control Flow
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: keeps the happy path unnested and readable
 tags: simplify, control-flow, guard-clauses
 ---
 
 ## Return Early to Flatten Control Flow
 
-When a function has preconditions to check, return as soon as one fails. Agents tend to write deeply nested "if valid, if authorized, if ..." pyramids — the happy path ends up buried five levels in. Guard clauses flatten the structure and make the happy path the most visible branch.
+When a function has preconditions to check, return as soon as one fails. Deeply nested "if valid, if authorized, if ..." pyramids bury the happy path five levels in. Guard clauses flatten the structure and make the happy path the most visible branch.
 
-**Incorrect (pyramid of nesting):**
+**Incorrect (pyramid of nesting — the actual work is five levels in):**
 
 ```python
 def process_request(req: Request) -> Response:
@@ -28,9 +28,7 @@ def process_request(req: Request) -> Response:
         return error(401, "unauthenticated")
 ```
 
-The actual work — `do_process(req.body)` — is the innermost line. Every error case has to be read to get there.
-
-**Correct (guard clauses, happy path at the end):**
+**Correct (guard clauses; happy path unindented at the end):**
 
 ```python
 def process_request(req: Request) -> Response:
@@ -46,40 +44,4 @@ def process_request(req: Request) -> Response:
     return do_process(req.body)
 ```
 
-Each precondition is handled and dismissed. The happy path is unindented, at the bottom, easy to find.
-
-**Works the same for loops:**
-
-```python
-# pyramid
-for item in items:
-    if item.active:
-        if item.ready:
-            process(item)
-
-# flattened
-for item in items:
-    if not item.active:
-        continue
-    if not item.ready:
-        continue
-    process(item)
-```
-
-**When to keep the `else`:**
-
-- The two branches do comparable work (not "error vs. success")
-- The function is short enough that nesting doesn't obscure the structure
-
-```python
-# fine — short, parallel branches
-def classify(n: int) -> str:
-    if n > 0:
-        return "positive"
-    elif n < 0:
-        return "negative"
-    else:
-        return "zero"
-```
-
-**Rule of thumb:** if you're checking "is this valid?" and returning an error on the no-branch, guard-clause it. If you're splitting between two equal outcomes, `if/else` is fine.
+The same pattern applies to loops — `if not item.active: continue` instead of nesting the work inside `if item.active:`. Keep `if/else` when the two branches do comparable work (`"positive"` vs. `"negative"` vs. `"zero"`); guard-clause when one branch is an error and the other is the real work.

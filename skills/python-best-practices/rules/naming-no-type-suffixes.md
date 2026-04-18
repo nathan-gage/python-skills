@@ -1,13 +1,13 @@
 ---
 title: Avoid Redundant Type Suffixes in Names
-impact: LOW-MEDIUM
+impact: LOW
 impactDescription: reduces noise when types annotate types
 tags: naming, types, conventions
 ---
 
 ## Avoid Redundant Type Suffixes in Names
 
-`user_list: list[User]`, `config_dict: dict[str, str]`, `name_str: str` — the suffix repeats what the type annotation already says. Python has type annotations; let them do the work. Agents default to Hungarian-style naming because "it makes the type clear" — the type is right there.
+`user_list: list[User]`, `config_dict: dict[str, str]`, `name_str: str` — the suffix repeats what the type annotation already says. Python has type annotations; let them do the work. Hungarian-style suffixes "make the type clear" at the cost of restating what's already on the next token.
 
 **Incorrect (suffix restates the type):**
 

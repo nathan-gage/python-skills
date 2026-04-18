@@ -1,7 +1,7 @@
 ---
 title: Don't Access Private Attributes
-impact: HIGH
-impactDescription: prevents breakage when internals change
+impact: LOW-MEDIUM
+impactDescription: internals are free to change without notifying external callers
 tags: api, privacy, coupling
 ---
 

@@ -1,13 +1,13 @@
 ---
 title: Inline Single-Use Intermediate Variables
-impact: LOW-MEDIUM
+impact: LOW
 impactDescription: reduces noise and indirection
 tags: simplify, variables, inline
 ---
 
 ## Inline Single-Use Intermediate Variables
 
-When a variable is assigned once and used once immediately after, inlining it removes a name that doesn't earn its keep. Agents tend to introduce `_filtered`, `_cleaned`, `_copy` intermediates "for clarity" — but the clarity is usually from the name, and if the name isn't informative, the variable is just noise.
+When a variable is assigned once and used once immediately after, inlining it removes a name that doesn't earn its keep. Intermediates like `_filtered`, `_cleaned`, `_copy` show up "for clarity" — but the clarity is usually from the name, and if the name isn't informative, the variable is just noise.
 
 **Incorrect (intermediates that add nothing):**
 

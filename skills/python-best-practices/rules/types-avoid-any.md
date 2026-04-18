@@ -1,13 +1,13 @@
 ---
 title: Avoid Any Annotations
-impact: CRITICAL
-impactDescription: preserves type-checker coverage
+impact: MEDIUM
+impactDescription: narrows types in new code; retrofitting existing `Any` is churn
 tags: types, any, precision, protocols
 ---
 
 ## Avoid `Any` Annotations
 
-`Any` turns off the type checker for that value — it accepts anything, produces anything, and propagates silently into every call site that consumes it. Agents reach for `Any` when the right type feels hard; almost always, a `Protocol`, `TypeVar`, or `Union` is available.
+`Any` turns off the type checker for that value — it accepts anything, produces anything, and propagates silently into every call site that consumes it. `Any` is common when the right type feels hard to write; almost always, a `Protocol`, `TypeVar`, or `Union` is available.
 
 **Incorrect (Any leaks through the system):**
 

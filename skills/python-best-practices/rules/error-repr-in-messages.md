@@ -1,6 +1,6 @@
 ---
 title: Use !r Format for Identifiers in Error Messages
-impact: MEDIUM
+impact: LOW
 impactDescription: produces consistent, unambiguous messages
 tags: error, formatting, messages, repr
 ---

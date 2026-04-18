@@ -1,6 +1,6 @@
 ---
 title: Use TYPE_CHECKING for Optional Dependencies
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: preserves type hints without forcing the import
 tags: types, imports, optional-dependencies, typing
 ---

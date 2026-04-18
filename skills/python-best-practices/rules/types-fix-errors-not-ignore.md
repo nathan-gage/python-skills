@@ -8,7 +8,7 @@ references: https://mypy.readthedocs.io/en/stable/error_codes.html, https://micr
 
 ## Fix Type Errors, Don't Ignore Them
 
-`# type: ignore` and `# pyright: ignore` silence the checker — but the underlying problem stays. Agents reach for ignore comments when a type looks hard; each one degrades the signal from every future run. Fix the error properly, and when a suppression is genuinely unavoidable, document why.
+`# type: ignore` and `# pyright: ignore` silence the checker — but the underlying problem stays. Ignore comments are common when a type looks hard; each one degrades the signal from every future run. Fix the error properly, and when a suppression is genuinely unavoidable, document why.
 
 **Incorrect (ignore comment masks the real problem):**
 

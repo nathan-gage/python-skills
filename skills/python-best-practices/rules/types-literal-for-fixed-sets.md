@@ -1,6 +1,6 @@
 ---
 title: Use Literal Types for Fixed String Sets
-impact: HIGH
+impact: MEDIUM
 impactDescription: catches invalid strings at type-check time
 tags: types, literal, strings, validation
 ---

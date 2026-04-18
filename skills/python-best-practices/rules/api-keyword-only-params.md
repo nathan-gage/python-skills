@@ -1,6 +1,6 @@
 ---
 title: Use Keyword-Only Parameters for Optional Config
-impact: HIGH
+impact: MEDIUM
 impactDescription: prevents breakage when adding or reordering params
 tags: api, parameters, keyword-only, compatibility
 references: https://docs.python.org/3/library/dataclasses.html#dataclasses.KW_ONLY, https://peps.python.org/pep-3102/
@@ -8,7 +8,7 @@ references: https://docs.python.org/3/library/dataclasses.html#dataclasses.KW_ON
 
 ## Use Keyword-Only Parameters for Optional Config
 
-Positional parameters lock in their order forever — adding a new parameter in the middle breaks every caller. Keyword-only parameters (after `*` in functions, after `_: KW_ONLY` in dataclasses) let you add, remove, or reorder without breaking callers. Agents default to positional; push back.
+Positional parameters lock in their order forever — adding a new parameter in the middle breaks every caller. Keyword-only parameters (after `*` in functions, after `_: KW_ONLY` in dataclasses) let you add, remove, or reorder without breaking callers. Positional is Python's default; keyword-only is an explicit choice.
 
 **Incorrect (positional config — order is now part of the API):**
 

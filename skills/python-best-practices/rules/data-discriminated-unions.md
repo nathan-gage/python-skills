@@ -1,14 +1,14 @@
 ---
 title: Use Discriminated Unions Over Optional Bags
-impact: CRITICAL
-impactDescription: makes impossible states unrepresentable
+impact: MEDIUM
+impactDescription: tags variants explicitly in new designs; retrofit is expensive
 tags: data, types, unions, modeling
 references: https://docs.python.org/3/library/typing.html#typing.Literal, https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions
 ---
 
 ## Use Discriminated Unions Over Optional Bags
 
-Every optional field is a question the rest of the codebase must answer every time it touches the data. Agents tend to add optional fields as features grow, creating models where half the combinations are semantically invalid. Use a tagged (discriminated) union so the type system enforces which fields travel together.
+Every optional field is a question the rest of the codebase must answer every time it touches the data. Optional fields accumulate as features grow, producing models where half the combinations are semantically invalid. Use a tagged (discriminated) union so the type system enforces which fields travel together.
 
 **Incorrect (optional fields create impossible state combinations):**
 

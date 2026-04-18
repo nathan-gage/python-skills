@@ -1,6 +1,6 @@
 ---
 title: Remove Redundant `| None` When Values Are Guaranteed
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: eliminates false uncertainty in the type signature
 tags: types, optional, none, annotations
 ---

@@ -1,13 +1,13 @@
 ---
 title: Use Comprehensions Over for+append Loops
-impact: MEDIUM-HIGH
+impact: LOW
 impactDescription: more concise, often faster, and idiomatic Python
 tags: simplify, comprehensions, idioms
 ---
 
 ## Use Comprehensions Over for+append Loops
 
-Comprehensions express "build a collection from an iterable" in one line. Agents often write C-style loops with `append()` — more code, more variables, more places for off-by-one and wrong-list bugs. Reach for a comprehension by default.
+Comprehensions express "build a collection from an iterable" in one line. C-style loops with `append()` have more variables and more places for off-by-one and wrong-list bugs. Reach for a comprehension by default.
 
 **Incorrect (imperative loop + append):**
 
@@ -18,58 +18,17 @@ def active_usernames(users: list[User]) -> list[str]:
         if user.is_active:
             result.append(user.name)
     return result
-
-def name_to_id(users: list[User]) -> dict[str, str]:
-    mapping = {}
-    for user in users:
-        mapping[user.name] = user.id
-    return mapping
 ```
 
-**Correct (comprehensions):**
+**Correct (list, dict, set, and generator forms):**
 
 ```python
 def active_usernames(users: list[User]) -> list[str]:
     return [user.name for user in users if user.is_active]
 
-def name_to_id(users: list[User]) -> dict[str, str]:
-    return {user.name: user.id for user in users}
-```
-
-**Also:**
-
-```python
-# set comprehension
+name_to_id = {user.name: user.id for user in users}
 unique_tags = {tag for post in posts for tag in post.tags}
-
-# generator expression (lazy — doesn't build a list in memory)
-total = sum(item.price for item in items)
+total = sum(item.price for item in items)   # generator, no intermediate list
 ```
 
-**When NOT to use a comprehension:**
-
-- Multi-step logic that doesn't fit on one line cleanly — readability beats brevity
-- Side effects (use a plain loop; comprehensions are for building collections)
-- Complex conditionals with intermediate variables
-
-```python
-# too dense to read — use a loop
-result = [
-    process(x, key=compute_key(x, config))
-    for x in items
-    if x.valid and (x.priority > threshold or x.override)
-]
-```
-
-Break it up when the comprehension stops reading like English.
-
-**`any()` and `all()` over comprehensions that just reduce to a bool:**
-
-```python
-# overkill
-has_admin = [u.is_admin for u in users] != []  # wrong shape entirely
-has_admin = any([u.is_admin for u in users])   # builds a list first
-
-# right
-has_admin = any(u.is_admin for u in users)     # generator, short-circuits
-```
+Break a comprehension into a loop when the expression stops reading like English — multi-step logic, side effects, or nested conditionals with intermediate variables are signs the comprehension has outgrown one line. For boolean reductions, prefer `any(u.is_admin for u in users)` over `any([...])` — the generator short-circuits and avoids materializing the list.

@@ -1,9 +1,9 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "organization": "Python Best Practices",
   "date": "April 2026",
   "pythonVersion": ">=3.11",
-  "abstract": "Comprehensive Python software engineering guidelines designed for AI agents. 60+ rules across 8 categories, prioritized by impact from critical (data modeling, type safety) to low (import hygiene). Each rule names the failure mode agents tend toward, shows incorrect and correct code, cites primary-source references where the rule depends on language or library behavior, and explains the payoff. Rules assume Python 3.11+ as a baseline; rules that depend on a higher version (e.g., 3.13 for warnings.deprecated) are tagged accordingly.",
+  "abstract": "Python software engineering guidelines for agent consumption. 69 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo.",
   "references": [
     "https://docs.python.org/3/library/typing.html",
     "https://docs.python.org/3/library/dataclasses.html",

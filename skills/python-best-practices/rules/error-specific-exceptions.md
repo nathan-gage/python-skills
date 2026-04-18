@@ -1,27 +1,25 @@
 ---
 title: Catch Specific Exception Types
 impact: HIGH
-impactDescription: prevents masking unrelated bugs
-tags: error, exceptions, defensive
-references: https://docs.python.org/3/tutorial/errors.html#handling-exceptions, https://docs.python.org/3/library/exceptions.html#exception-hierarchy
+impactDescription: prevents masked bugs and broken Ctrl-C / cancellation
+tags: error, exceptions, asyncio, cancellation
+references: https://docs.python.org/3/tutorial/errors.html#handling-exceptions, https://docs.python.org/3/library/exceptions.html#exception-hierarchy, https://docs.python.org/3/library/asyncio-exceptions.html#asyncio.CancelledError, https://peps.python.org/pep-0008/#programming-recommendations
 ---
 
 ## Catch Specific Exception Types
 
-Catch the specific exception types you actually intend to handle. A broad `except Exception:` catches every regular error in your codebase, including bugs you wanted to see. (For the even worse `except:` with no type at all — which also catches `KeyboardInterrupt` and `SystemExit` — see `error-no-bare-except`.) Agents default to broad handlers because "we should be resilient"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle.
+Catch the exception types you intend to handle. A broad `except Exception:` catches every regular error including your own bugs. A bare `except:` or `except BaseException:` is worse — it also catches `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`, which must propagate.
 
-**Incorrect (bare except catches unrelated errors):**
+**Incorrect (catches your own bugs):**
 
 ```python
 def fetch_user(user_id: str) -> User | None:
     try:
         response = http.get(f"/users/{user_id}")
         return parse_user(response.json())
-    except Exception:  # catches everything — including your own bugs
+    except Exception:  # swallows KeyError from a typo in parse_user
         return None
 ```
-
-If `parse_user` has a `KeyError` bug, this returns `None` silently. Production sees "user not found" forever; the typo is invisible.
 
 **Correct (catch what you actually handle):**
 
@@ -31,39 +29,20 @@ def fetch_user(user_id: str) -> User | None:
         response = http.get(f"/users/{user_id}")
     except (HTTPError, TimeoutError):
         return None
-    return parse_user(response.json())  # bugs here propagate as they should
+    return parse_user(response.json())  # bugs here propagate
 ```
 
-Now only network failures return `None`. Parsing bugs crash loudly — which is what you want during development, and what surfaces real incidents in production.
-
-**When a broad handler is appropriate:**
-
-- At the top of a request handler or worker loop (last line of defense)
-- When you will **log and re-raise** — not swallow
-- Around explicitly unsafe boundaries (untrusted user code, plugins)
+Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`. A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
 
 ```python
 def handle_request(req: Request) -> Response:
     try:
         return process(req)
-    except Exception as e:
+    except Exception:
         logger.exception("unhandled error in request handler")
-        raise  # don't swallow — let the framework return 500
+        raise
 ```
 
-**Create specific exception types for domain failures:**
+**Cancellation semantics (asyncio / anyio):** On Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception`. So `except Exception:` is cancellation-safe — do not flag it as "swallowing cancellation." Only `except BaseException:` (or bare `except:`) catches cancellation. If you do catch `BaseException` or `anyio.get_cancelled_exc_class()`, re-raise. Wrap must-complete cleanup in `asyncio.shield()` — under cancellation, `finally:` blocks race against the cancellation itself.
 
-```python
-class ToolExecutionError(Exception): ...
-class ToolTimeoutError(ToolExecutionError): ...
-class ToolValidationError(ToolExecutionError): ...
-
-try:
-    result = run_tool(tool, args)
-except ToolTimeoutError:
-    retry()
-except ToolValidationError as e:
-    return report_invalid(e)
-```
-
-Specific exception classes make handlers self-documenting and enable different handling per failure mode.
+For meaningful handling, create domain-specific exception types (`ToolTimeoutError(ToolExecutionError)`, etc.) so handlers match on failure mode rather than error text.

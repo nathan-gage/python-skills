@@ -1,6 +1,6 @@
 ---
 title: Use functools.lru_cache for Pure Functions
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: trades memory for CPU on repeatable computations
 tags: perf, lru-cache, caching, functools
 references: https://docs.python.org/3/library/functools.html#functools.lru_cache, https://docs.python.org/3/library/functools.html#functools.cache

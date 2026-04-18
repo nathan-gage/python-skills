@@ -1,6 +1,6 @@
 ---
 title: Remove Commented-Out and Dead Code
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: reduces confusion about intent
 tags: simplify, dead-code, cleanup
 references: https://docs.astral.sh/ruff/rules/commented-out-code/

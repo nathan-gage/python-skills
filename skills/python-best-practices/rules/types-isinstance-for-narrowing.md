@@ -1,13 +1,13 @@
 ---
 title: Use isinstance() for Type Checking, Not hasattr/getattr
-impact: CRITICAL
+impact: MEDIUM
 impactDescription: enables proper type narrowing for the checker
 tags: types, isinstance, narrowing, duck-typing
 ---
 
 ## Use `isinstance()` for Type Checking, Not `hasattr`/`getattr`
 
-Type checkers narrow types through `isinstance()` checks, discriminator match statements, and `TypeGuard` functions — not through `hasattr()`, `getattr()`, or `type(obj).__name__ == "..."`. Agents reach for `hasattr` for "flexibility"; the actual cost is that the checker can't narrow and refactors silently break string comparisons.
+Type checkers narrow types through `isinstance()` checks, discriminator match statements, and `TypeGuard` functions — not through `hasattr()`, `getattr()`, or `type(obj).__name__ == "..."`. `hasattr` is common for "flexibility"; the actual cost is that the checker can't narrow and refactors silently break string comparisons.
 
 **Incorrect (hasattr/getattr defeats type narrowing):**
 

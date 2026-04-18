@@ -1,6 +1,6 @@
 ---
 title: Consolidate try/except Blocks with the Same Handler
-impact: MEDIUM-HIGH
+impact: LOW-MEDIUM
 impactDescription: reduces duplication and simplifies control flow
 tags: error, exceptions, duplication
 ---

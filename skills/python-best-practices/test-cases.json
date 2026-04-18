@@ -1,24 +1,24 @@
 {
   "generated_by": "src/extract_tests.py",
-  "count": 71,
+  "count": 69,
   "cases": [
     {
       "rule": "api-deprecated-aliases",
       "title": "Keep Old Names as Deprecated Aliases",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "api",
         "deprecation",
         "compatibility"
       ],
-      "incorrect": "# v1.0\ndef get_user(user_id: str) -> User: ...\n\n# v1.1\ndef fetch_user(user_id: str) -> User: ...  # renamed \u2014 v1.0 callers now crash",
-      "correct": "import warnings\n\ndef fetch_user(user_id: str) -> User:\n    ...\n\ndef get_user(user_id: str) -> User:\n    warnings.warn(\n        \"get_user is deprecated; use fetch_user instead.\",\n        DeprecationWarning,\n        stacklevel=2,\n    )\n    return fetch_user(user_id)",
+      "incorrect": "# v1.0\ndef get_user(user_id: str) -> User: ...\n\n# v1.1\ndef fetch_user(user_id: str) -> User: ...  # v1.0 callers now crash",
+      "correct": "import warnings\n\n@warnings.deprecated(\"get_user is deprecated; use fetch_user instead.\")\ndef get_user(user_id: str) -> User:\n    return fetch_user(user_id)",
       "explanation": "Renaming a public function, class, or parameter is a breaking change. Users upgrade at their own pace; if the old name vanishes, they can't. Keep the old name as a deprecated alias for at least one release, pointing at the new name."
     },
     {
       "rule": "api-immutable-transforms",
       "title": "Return New Collections from Transforms",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "api",
         "immutability",
@@ -32,7 +32,7 @@
     {
       "rule": "api-instance-vs-module-fn",
       "title": "Choose the Simplest Namespace That Matches Ownership and Polymorphism",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "api",
         "methods",
@@ -40,14 +40,14 @@
         "design",
         "namespace"
       ],
-      "incorrect": "def update_user_preferences(user: User, key: str, value: object) -> None:\n    user.prefs[key] = value\n    user.last_modified = now()\n\ndef get_user_display_name(user: User) -> str:\n    return f\"{user.first_name} {user.last_name}\"",
-      "correct": "class User:\n    def update_preference(self, key: str, value: object) -> None:\n        self.prefs[key] = value\n        self.last_modified = now()\n\n    @property\n    def display_name(self) -> str:\n        return f\"{self.first_name} {self.last_name}\"",
-      "explanation": "Python lets the same logic live as a module-level function, an instance method, a `@classmethod`, a `@staticmethod`, a method on a `Protocol`, or a method on a `dataclass`. None of these is universally right. Pick the smallest namespace that captures **ownership** (does this operation belong to one object?) and **polymorphism** (will multiple types provide their own version?)."
+      "incorrect": "class DateFormatter:\n    def format_iso(self, d: date) -> str:\n        return d.isoformat()  # self unused, no subclasses overriding",
+      "correct": "def format_iso(d: date) -> str:\n    return d.isoformat()",
+      "explanation": "Python lets the same logic live as a module function, instance method, `@classmethod`, `@staticmethod`, or Protocol. None is universally right. Pick the smallest namespace that captures **ownership** (does this operation belong to one object?) and **polymorphism** (will multiple types provide their own version?). Start at module scope; promote to a method only when ownership or polymorphism actually demand it."
     },
     {
       "rule": "api-keyword-only-params",
       "title": "Use Keyword-Only Parameters for Optional Config",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "api",
         "parameters",
@@ -56,7 +56,7 @@
       ],
       "incorrect": "def fetch(url, timeout=30, retries=3, verify_ssl=True, backoff=1.5):\n    ...\n\nfetch(\"https://api.example.com\", 60, 5, False)",
       "correct": "def fetch(url, *, timeout=30, retries=3, verify_ssl=True, backoff=1.5):\n    ...\n\nfetch(\"https://api.example.com\", timeout=60, retries=5, verify_ssl=False)",
-      "explanation": "Positional parameters lock in their order forever \u2014 adding a new parameter in the middle breaks every caller. Keyword-only parameters (after `*` in functions, after `_: KW_ONLY` in dataclasses) let you add, remove, or reorder without breaking callers. Agents default to positional; push back."
+      "explanation": "Positional parameters lock in their order forever \u2014 adding a new parameter in the middle breaks every caller. Keyword-only parameters (after `*` in functions, after `_: KW_ONLY` in dataclasses) let you add, remove, or reorder without breaking callers. Positional is Python's default; keyword-only is an explicit choice."
     },
     {
       "rule": "api-model-cohesion",
@@ -74,7 +74,7 @@
     {
       "rule": "api-no-boolean-flag-params",
       "title": "Avoid Boolean Flag Parameters in Public APIs",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "api",
         "parameters",
@@ -82,14 +82,14 @@
         "literal",
         "enum"
       ],
-      "incorrect": "def export_report(rows: list[Row], to_csv: bool = True, compress: bool = False) -> bytes:\n    if to_csv:\n        data = render_csv(rows)\n    else:\n        data = render_json(rows)\n    if compress:\n        data = gzip.compress(data)\n    return data\n\nexport_report(rows, True, False)   # what does True/False mean here?\nexport_report(rows, False, True)   # JSON, compressed? CSV, compressed? Reader can't tell.",
-      "correct": "def export_csv(rows: list[Row]) -> bytes: ...\ndef export_json(rows: list[Row]) -> bytes: ...\n\ndef with_compression(data: bytes) -> bytes:\n    return gzip.compress(data)\n\n# call site\ndata = with_compression(export_csv(rows))",
-      "explanation": "A boolean parameter is a binary mode switch hiding behind a generic type. The call site `download(url, True, False, True)` is unreadable, the function body branches on the flag with two near-duplicate code paths, and adding a third mode later requires breaking the API. This is the function-level cousin of `data-explicit-variants`: when behavior meaningfully changes on a flag, prefer split functions or a `Literal`/`Enum` parameter."
+      "incorrect": "def export_report(rows: list[Row], to_csv: bool = True, compress: bool = False) -> bytes:\n    data = render_csv(rows) if to_csv else render_json(rows)\n    return gzip.compress(data) if compress else data\n\nexport_report(rows, False, True)   # JSON, compressed? CSV, compressed? Reader can't tell.",
+      "correct": "from typing import Literal\n\nFormat = Literal[\"csv\", \"json\", \"parquet\"]\n\ndef export_report(rows: list[Row], format: Format, *, compress: bool = False) -> bytes:\n    match format:\n        case \"csv\":     data = render_csv(rows)\n        case \"json\":    data = render_json(rows)\n        case \"parquet\": data = render_parquet(rows)\n    return gzip.compress(data) if compress else data\n\nexport_report(rows, format=\"csv\", compress=True)",
+      "explanation": "A boolean parameter is a binary mode switch hiding behind a generic type. `download(url, True, False, True)` is unreadable, the body branches on the flag with near-duplicate paths, and adding a third mode later breaks the API. The function-level cousin of `data-explicit-variants`: when behavior meaningfully changes on a flag, prefer split functions or a `Literal`/`Enum` parameter."
     },
     {
       "rule": "api-no-private-access",
       "title": "Don't Access Private Attributes",
-      "impact": "HIGH",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "api",
         "privacy",
@@ -115,7 +115,7 @@
     {
       "rule": "api-underscore-for-private",
       "title": "Underscore Prefix for Private Names",
-      "impact": "HIGH",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "api",
         "privacy",
@@ -123,7 +123,7 @@
       ],
       "incorrect": "# mymodule.py\ndef format_date(d):\n    return _to_iso_string(d)\n\ndef to_iso_string(d):    # helper \u2014 but no underscore, so it's public\n    return d.isoformat()\n\n__all__ = [\"format_date\", \"to_iso_string\"]  # accidentally exported",
       "correct": "# mymodule.py\ndef format_date(d):\n    return _to_iso_string(d)\n\ndef _to_iso_string(d):\n    return d.isoformat()\n\n__all__ = [\"format_date\"]",
-      "explanation": "Names that start with `_` are internal. Names that don't are public \u2014 and public means \"backward-compatible forever unless deprecated.\" Agents tend to leave implementation details public because there's no language-level enforcement; underscore them on the way in, not after they've leaked."
+      "explanation": "Names that start with `_` are internal. Names that don't are public \u2014 and public means \"backward-compatible forever unless deprecated.\" Without language-level enforcement, implementation details often stay public; underscore them on the way in, not after they've leaked."
     },
     {
       "rule": "data-aware-datetimes",
@@ -135,14 +135,14 @@
         "timezone",
         "boundaries"
       ],
-      "incorrect": "from datetime import datetime\n\ndef stamp() -> datetime:\n    return datetime.utcnow()              # naive! DeprecationWarning in 3.12+",
-      "correct": "from datetime import datetime, timezone\n\ndef stamp() -> datetime:\n    return datetime.now(timezone.utc)     # aware, unambiguous\n\nstart = datetime.now(timezone.utc)\nlog.info(\"started\", start=start.isoformat())  # \"2026-04-17T12:00:00+00:00\"",
-      "explanation": "A `datetime` with no `tzinfo` is **naive**: it has no opinion about which timezone it represents. Two naive datetimes that look identical may refer to different absolute moments. Naive datetimes leak into databases, JSON payloads, log lines, and inter-service messages and cause off-by-hours bugs that surface during DST transitions, on a different host, or when a user travels."
+      "incorrect": "from datetime import datetime\n\ndef stamp() -> datetime:\n    return datetime.utcnow()              # naive \u2014 a serializer reading it as local time writes the wrong value",
+      "correct": "from datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\ndef stamp() -> datetime:\n    return datetime.now(timezone.utc)     # aware; round-trips through isoformat() cleanly\n\nstored = datetime.now(timezone.utc)\ndisplay = stored.astimezone(ZoneInfo(\"America/Los_Angeles\"))  # named zone, DST handled",
+      "explanation": "A `datetime` with no `tzinfo` is **naive**: two naive datetimes that look identical may refer to different absolute moments. Naive values leak into databases, JSON, logs, and inter-service messages, then surface as off-by-hours bugs during DST or when hosts differ. At any boundary the value crosses (HTTP, DB, queue, file, log, comparison), it must be timezone-aware. Store and transport in UTC; convert to local zones at display."
     },
     {
       "rule": "data-delete-dead-variants",
       "title": "Delete Dead Variants",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "data",
         "types",
@@ -156,7 +156,7 @@
     {
       "rule": "data-derive-dont-store",
       "title": "Derive, Don't Store",
-      "impact": "CRITICAL",
+      "impact": "HIGH",
       "tags": [
         "data",
         "state",
@@ -165,12 +165,12 @@
       ],
       "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass ThreadState:\n    was_interrupted: bool\n    did_assistant_finish: bool\n    did_assistant_error: bool\n    was_tool_call_only: bool\n\ndef should_show_footer(state: ThreadState) -> bool:\n    return (\n        state.did_assistant_finish\n        and not state.was_interrupted\n        and not state.did_assistant_error\n        and not state.was_tool_call_only\n    )",
       "correct": "def should_show_footer(events: list[SessionEvent]) -> bool:\n    latest = get_latest_assistant_message(events)\n    if latest is None:\n        return False\n    return (\n        latest.completed\n        and not latest.error\n        and latest.finish_reason != \"tool_calls\"\n    )",
-      "explanation": "Every boolean you add doubles the theoretical state space. When a value can be computed from data you already have, do not store it. Agents are tempted to cache derived values \"for performance\" \u2014 the cost is multiple mutation sites that must stay in sync, and they won't."
+      "explanation": "Every boolean you add doubles the theoretical state space. When a value can be computed from data you already have, do not store it. Cached derived values require multiple mutation sites to stay in sync \u2014 and they won't."
     },
     {
       "rule": "data-discriminated-unions",
       "title": "Use Discriminated Unions Over Optional Bags",
-      "impact": "CRITICAL",
+      "impact": "MEDIUM",
       "tags": [
         "data",
         "types",
@@ -179,35 +179,35 @@
       ],
       "incorrect": "from dataclasses import dataclass\nfrom typing import Literal\n\n@dataclass\nclass PaymentState:\n    status: Literal[\"idle\", \"processing\", \"settled\"]\n    gateway: Literal[\"stripe\", \"paypal\"] | None = None\n    transaction_id: str | None = None\n    initiated_at: str | None = None\n    settled_at: str | None = None",
       "correct": "from dataclasses import dataclass\nfrom typing import Literal\n\n@dataclass\nclass PaymentIdle:\n    status: Literal[\"idle\"] = \"idle\"\n\n@dataclass\nclass PaymentProcessing:\n    gateway: Literal[\"stripe\", \"paypal\"]\n    transaction_id: str\n    initiated_at: str\n    status: Literal[\"processing\"] = \"processing\"\n\n@dataclass\nclass PaymentSettled:\n    gateway: Literal[\"stripe\", \"paypal\"]\n    transaction_id: str\n    settled_at: str\n    status: Literal[\"settled\"] = \"settled\"\n\nPaymentState = PaymentIdle | PaymentProcessing | PaymentSettled",
-      "explanation": "Every optional field is a question the rest of the codebase must answer every time it touches the data. Agents tend to add optional fields as features grow, creating models where half the combinations are semantically invalid. Use a tagged (discriminated) union so the type system enforces which fields travel together."
+      "explanation": "Every optional field is a question the rest of the codebase must answer every time it touches the data. Optional fields accumulate as features grow, producing models where half the combinations are semantically invalid. Use a tagged (discriminated) union so the type system enforces which fields travel together."
     },
     {
       "rule": "data-encapsulate-mutable-state",
       "title": "Encapsulate Mutable State in the Narrowest Clear Scope",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "data",
         "state",
         "encapsulation",
         "scope"
       ],
-      "incorrect": "from typing import Callable\n\nclass DebouncedWriter:\n    def __init__(self, callback: Callable[[], None], delay_ms: int = 300):\n        self._callback = callback\n        self._delay_ms = delay_ms\n        self._timeout_handle: TimerHandle | None = None  # touched by every method\n\n    def queue_send(self, text: str) -> None: ...\n    def flush_now(self) -> None: ...\n    def something_else(self) -> None: ...  # nothing prevents a bug here",
-      "correct": "from dataclasses import dataclass\nfrom typing import Callable\n\n@dataclass(frozen=True)\nclass DebouncedAction:\n    trigger: Callable[[], None]\n    clear: Callable[[], None]\n\ndef create_debounced_action(callback: Callable[[], None], delay_ms: int = 300) -> DebouncedAction:\n    timeout: TimerHandle | None = None\n\n    def trigger() -> None:\n        nonlocal timeout\n        if timeout is not None:\n            timeout.cancel()\n        timeout = schedule_after(delay_ms, _fire)\n\n    def _fire() -> None:\n        nonlocal timeout\n        timeout = None\n        callback()\n\n    def clear() -> None:\n        nonlocal timeout\n        if timeout is not None:\n            timeout.cancel()\n            timeout = None\n\n    return DebouncedAction(trigger=trigger, clear=clear)",
-      "explanation": "If mutable state must exist, give it the narrowest scope where the code that needs it is still **clear**. The principle is \"narrowest *clear* scope,\" not \"always closures over instance attributes.\" A closure can be the right answer when the state is small, the interface is one or two callables, and there's nothing else to inspect or test. An instance attribute is the right answer when the state belongs to a domain object with identity, when multiple methods need to share it, or when you want it to be easy to inspect, type, serialize, or mock in tests."
+      "incorrect": "class DebouncedWriter:\n    def __init__(self, callback: Callable[[], None], delay_ms: int = 300):\n        self._callback = callback\n        self._delay_ms = delay_ms\n        self._timeout_handle: TimerHandle | None = None  # touched by every method\n\n    def queue_send(self, text: str) -> None: ...\n    def flush_now(self) -> None: ...\n    def something_else(self) -> None: ...  # nothing prevents a bug here",
+      "correct": "@dataclass\nclass DebouncedAction:\n    callback: Callable[[], None]\n    delay_ms: int = 300\n    _timeout: TimerHandle | None = field(default=None, init=False, repr=False)\n\n    def trigger(self) -> None:\n        if self._timeout is not None:\n            self._timeout.cancel()\n        self._timeout = schedule_after(self.delay_ms, self._fire)\n\n    def _fire(self) -> None:\n        self._timeout = None\n        self.callback()\n\n    def clear(self) -> None:\n        if self._timeout is not None:\n            self._timeout.cancel()\n            self._timeout = None",
+      "explanation": "Give mutable state the narrowest scope where the surrounding code still reads clearly. A closure fits when the interface is one or two callables and nothing needs to inspect the state. A focused class fits when state has identity \u2014 multiple methods share it, or tests, logs, or subclasses need to see it. A wide-open class where every method can touch the state is how invariants rot."
     },
     {
       "rule": "data-explicit-variants",
       "title": "Create Explicit Variants Instead of Mode Flags",
-      "impact": "CRITICAL",
+      "impact": "MEDIUM",
       "tags": [
         "data",
         "api",
         "architecture",
         "variants"
       ],
-      "incorrect": "from dataclasses import dataclass\nfrom typing import Literal\n\n@dataclass\nclass MessageComposer:\n    on_submit: Callable[[str], None]\n    mode: Literal[\"channel\", \"thread\", \"dm_thread\", \"edit\", \"forward\"]\n    channel_id: str | None = None\n    dm_id: str | None = None\n    message_id: str | None = None\n\n    def render(self) -> Frame:\n        if self.mode == \"dm_thread\":\n            extra = AlsoSendToDMField(self.dm_id)\n        elif self.mode == \"thread\":\n            extra = AlsoSendToChannelField(self.channel_id)\n        else:\n            extra = None\n        if self.mode == \"edit\":\n            actions = EditActions()\n        elif self.mode == \"forward\":\n            actions = ForwardActions()\n        else:\n            actions = DefaultActions()\n        return Frame(extra, actions)",
-      "correct": "from dataclasses import dataclass\n\n@dataclass\nclass ChannelComposer:\n    channel_id: str\n    on_submit: Callable[[str], None]\n\n    def render(self) -> Frame:\n        return Frame(extra=None, actions=DefaultActions())\n\n@dataclass\nclass ThreadComposer:\n    channel_id: str\n    on_submit: Callable[[str], None]\n\n    def render(self) -> Frame:\n        return Frame(\n            extra=AlsoSendToChannelField(self.channel_id),\n            actions=DefaultActions(),\n        )\n\n@dataclass\nclass EditMessageComposer:\n    message_id: str\n    on_submit: Callable[[str], None]\n\n    def render(self) -> Frame:\n        return Frame(extra=None, actions=EditActions())",
-      "explanation": "When a class starts growing `is_thread`, `is_editing`, `is_forwarding` flags \u2014 or a mode parameter like `mode: Literal[\"thread\", \"edit\", \"forward\"]` \u2014 stop. Each flag doubles the possible states; each mode check adds conditional logic at every call site. Split into explicit subclasses or sibling classes instead."
+      "incorrect": "@dataclass\nclass MessageComposer:\n    on_submit: Callable[[str], None]\n    mode: Literal[\"channel\", \"thread\", \"dm_thread\", \"edit\", \"forward\"]\n    channel_id: str | None = None\n    dm_id: str | None = None\n    message_id: str | None = None\n\n    def render(self) -> Frame:\n        if self.mode == \"dm_thread\":\n            extra = AlsoSendToDMField(self.dm_id)\n        elif self.mode == \"thread\":\n            extra = AlsoSendToChannelField(self.channel_id)\n        else:\n            extra = None\n        if self.mode == \"edit\":\n            actions = EditActions()\n        elif self.mode == \"forward\":\n            actions = ForwardActions()\n        else:\n            actions = DefaultActions()\n        return Frame(extra, actions)",
+      "correct": "@dataclass\nclass ChannelComposer:\n    channel_id: str\n    on_submit: Callable[[str], None]\n    def render(self) -> Frame:\n        return Frame(extra=None, actions=DefaultActions())\n\n@dataclass\nclass ThreadComposer:\n    channel_id: str\n    on_submit: Callable[[str], None]\n    def render(self) -> Frame:\n        return Frame(AlsoSendToChannelField(self.channel_id), DefaultActions())\n\n@dataclass\nclass EditMessageComposer:\n    message_id: str\n    on_submit: Callable[[str], None]\n    def render(self) -> Frame:\n        return Frame(extra=None, actions=EditActions())",
+      "explanation": "When a class grows `is_thread`, `is_editing`, `is_forwarding` flags \u2014 or a mode parameter like `mode: Literal[\"thread\", \"edit\", \"forward\"]` \u2014 stop. Each flag doubles the state space; each mode check adds conditional logic at every call site. Split into explicit classes instead."
     },
     {
       "rule": "data-mutable-defaults",
@@ -220,9 +220,9 @@
         "dataclass",
         "pydantic"
       ],
-      "incorrect": "def append_item(item: int, items: list[int] = []) -> list[int]:\n    items.append(item)\n    return items\n\nappend_item(1)  # [1]\nappend_item(2)  # [1, 2]   \u2190 surprise: same list as before\nappend_item(3)  # [1, 2, 3]",
-      "correct": "def append_item(item: int, items: list[int] | None = None) -> list[int]:\n    if items is None:\n        items = []\n    items.append(item)\n    return items\n\nappend_item(1)  # [1]\nappend_item(2)  # [2]   \u2190 fresh list per call",
-      "explanation": "A default argument is evaluated **once**, when the `def`/class statement runs \u2014 not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore **shared across every call** that doesn't override it. The result is a footgun where appending to the \"default\" list on one call mutates the default for every subsequent call. The same trap exists for dataclass and Pydantic field defaults."
+      "incorrect": "def append_item(item: int, items: list[int] = []) -> list[int]:\n    items.append(item)\n    return items\n\nappend_item(1)  # [1]\nappend_item(2)  # [1, 2]   \u2190 surprise: same list as before",
+      "correct": "def append_item(item: int, items: list[int] | None = None) -> list[int]:\n    if items is None:\n        items = []\n    items.append(item)\n    return items",
+      "explanation": "A default argument is evaluated **once**, when the `def` statement runs \u2014 not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore shared across every call that doesn't override it. Appending to the \"default\" list on one call mutates the default for every subsequent call. The same trap applies to dataclass and Pydantic field defaults. Always use `None` + body construction, or `default_factory`."
     },
     {
       "rule": "data-mutation-contract",
@@ -255,21 +255,21 @@
     {
       "rule": "data-phased-composition",
       "title": "Phase Related Optional Fields Into Nested Structs",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "data",
         "modeling",
         "optional",
         "dataclasses"
       ],
-      "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass UserProfile:\n    first_name: str | None = None\n    last_name: str | None = None\n    email: str | None = None\n    phone: str | None = None\n    company: str | None = None\n    job_title: str | None = None\n    billing_address: str | None = None\n    billing_city: str | None = None\n    billing_zip: str | None = None\n    card_last4: str | None = None\n    card_brand: str | None = None\n    card_expires: str | None = None",
-      "correct": "from dataclasses import dataclass\n\n@dataclass\nclass Identity:\n    first_name: str\n    last_name: str\n    email: str\n    phone: str | None = None\n\n@dataclass\nclass Employment:\n    company: str\n    job_title: str\n\n@dataclass\nclass Billing:\n    address: str\n    city: str\n    zip_code: str\n    card_last4: str\n    card_brand: str\n    card_expires: str\n\n@dataclass\nclass UserProfile:\n    identity: Identity | None = None\n    employment: Employment | None = None\n    billing: Billing | None = None",
-      "explanation": "When fields are \"all present or all absent\" in practice, don't model them as eight independent optionals at the top level. Agents tend to flatten everything into one class with `firstName: str | None`, `lastName: str | None`, etc. \u2014 which means every consumer writes `profile.first_name or defaults.first_name` eight times, and the type says nothing about which fields co-occur."
+      "incorrect": "@dataclass\nclass UserProfile:\n    first_name: str | None = None\n    last_name: str | None = None\n    email: str | None = None\n    phone: str | None = None\n    company: str | None = None\n    job_title: str | None = None\n    billing_address: str | None = None\n    billing_city: str | None = None\n    billing_zip: str | None = None\n    card_last4: str | None = None\n    card_brand: str | None = None\n    card_expires: str | None = None",
+      "correct": "@dataclass\nclass Identity:\n    first_name: str\n    last_name: str\n    email: str\n    phone: str | None = None\n\n@dataclass\nclass Billing:\n    address: str\n    city: str\n    zip_code: str\n    card_last4: str\n    card_brand: str\n    card_expires: str\n\n@dataclass\nclass UserProfile:\n    identity: Identity | None = None\n    billing: Billing | None = None",
+      "explanation": "When fields are \"all present or all absent\" in practice, don't model them as eight independent optionals at the top level. The flattened alternative forces consumers to `profile.first_name or defaults.first_name` eight times, and the type says nothing about which fields co-occur."
     },
     {
       "rule": "data-sentinel-when-none-is-valid",
       "title": "Use a Sentinel Object When None Is a Real Domain Value",
-      "impact": "MEDIUM-HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "data",
         "sentinel",
@@ -277,42 +277,42 @@
         "optional",
         "defaults"
       ],
-      "incorrect": "def update_user(user_id: str, nickname: str | None = None) -> User:\n    user = db.get(user_id)\n    user.nickname = nickname        # was the caller clearing the nickname,\n    db.save(user)                   # or did they just not pass it?\n    return user\n\nupdate_user(\"u1\")                   # didn't touch nickname? cleared it?\nupdate_user(\"u1\", nickname=None)    # same call \u2014 same ambiguity\nupdate_user(\"u1\", nickname=\"bob\")   # this one is clear",
-      "correct": "from typing import Final\n\nclass _Unset:\n    def __repr__(self) -> str:\n        return \"<unset>\"\n\nUNSET: Final = _Unset()\n\ndef update_user(\n    user_id: str,\n    nickname: str | None | _Unset = UNSET,\n) -> User:\n    user = db.get(user_id)\n    if nickname is not UNSET:\n        user.nickname = nickname     # may be None (cleared) or a real string\n    db.save(user)\n    return user\n\nupdate_user(\"u1\")                    # nickname untouched\nupdate_user(\"u1\", nickname=None)     # nickname cleared\nupdate_user(\"u1\", nickname=\"bob\")    # nickname set to \"bob\"",
-      "explanation": "When `None` carries semantic meaning in your domain \u2014 \"the user explicitly cleared this field,\" \"no parent,\" \"no assignee\" \u2014 you can no longer use `None` as a \"not provided\" default. Reach for a private sentinel object instead. This complements `types-remove-redundant-optional`: that rule says drop `| None` when `None` is impossible; this rule says use a sentinel when `None` is meaningfully different from \"not passed.\""
+      "incorrect": "def update_user(user_id: str, nickname: str | None = None) -> User:\n    user = db.get(user_id)\n    user.nickname = nickname        # was the caller clearing it, or not passing it?\n    db.save(user)\n    return user",
+      "correct": "from typing import Final\n\nclass _Unset:\n    def __repr__(self) -> str:\n        return \"<unset>\"\n\nUNSET: Final = _Unset()\n\ndef update_user(user_id: str, nickname: str | None | _Unset = UNSET) -> User:\n    user = db.get(user_id)\n    if nickname is not UNSET:\n        user.nickname = nickname     # may be None (cleared) or a real string\n    db.save(user)\n    return user\n\nupdate_user(\"u1\")                    # nickname untouched\nupdate_user(\"u1\", nickname=None)     # nickname cleared\nupdate_user(\"u1\", nickname=\"bob\")    # nickname set to \"bob\"",
+      "explanation": "When `None` carries semantic meaning \u2014 \"user cleared this field,\" \"no parent,\" \"no assignee\" \u2014 `None` can't also be the \"not provided\" default. Use a private sentinel instead. The sentinel is a unique object compared with `is`, never `==`. Complements `types-remove-redundant-optional`: that rule says drop `| None` when `None` is impossible; this one says use a sentinel when `None` is meaningfully different from \"not passed.\""
     },
     {
       "rule": "error-assert-debug-only",
       "title": "Use assert Only for Debug-Only Internal Invariants",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "error",
         "assert",
         "invariants",
         "debug"
       ],
-      "incorrect": "def transfer_funds(account_id: str, amount: int) -> None:\n    assert amount > 0, \"amount must be positive\"  # vanishes under -O\n    assert account_id, \"account_id required\"      # vanishes under -O\n    ...",
-      "correct": "def process_step(step: Step) -> Result:\n    # Step is a closed union; reaching the default branch is a programmer error.\n    if isinstance(step, InitStep): return init()\n    if isinstance(step, RunStep):  return run()\n    if isinstance(step, DoneStep): return done()\n    assert False, f\"unhandled Step variant: {step!r}\"  # debug aid only",
-      "explanation": "`assert` is a **debug-only** statement. The Python language reference is explicit: assertions emit no code when Python is run with `-O` (or `PYTHONOPTIMIZE`), so the check disappears in optimized builds. That makes `assert` the right tool for \"this can never happen if my code is correct\" \u2014 and the *wrong* tool for any check that must run in production."
+      "incorrect": "def transfer_funds(account_id: str, amount: int) -> None:\n    assert amount > 0, \"amount must be positive\"  # stripped under -O\n    assert account_id, \"account_id required\"      # stripped under -O\n    ...",
+      "correct": "def transfer_funds(account_id: str, amount: int) -> None:\n    if not account_id:\n        raise ValueError(\"account_id required\")\n    if amount <= 0:\n        raise ValueError(\"amount must be positive\")\n    ...\n\ndef process_step(step: Step) -> Result:\n    # Step is a closed union; hitting the default branch is a programmer error.\n    if isinstance(step, InitStep): return init()\n    if isinstance(step, RunStep):  return run()\n    if isinstance(step, DoneStep): return done()\n    assert False, f\"unhandled Step variant: {step!r}\"  # debug-only",
+      "explanation": "`assert` is a debug-only statement \u2014 Python emits no code for it under `-O` or `PYTHONOPTIMIZE`. That makes `assert` the right tool for \"this can never happen if my code is correct\" and the wrong tool for any check that must run in production."
     },
     {
       "rule": "error-assert-never-exhaustiveness",
       "title": "Use assert_never for Exhaustiveness Checks",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "error",
         "exhaustiveness",
         "typing",
         "assert-never"
       ],
-      "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass InitStep: ...\n@dataclass\nclass RunStep: ...\n@dataclass\nclass DoneStep: ...\n\nStep = InitStep | RunStep | DoneStep\n\ndef process_step(step: Step) -> Result:\n    if isinstance(step, InitStep): return init()\n    if isinstance(step, RunStep):  return run()\n    if isinstance(step, DoneStep): return done()\n    raise RuntimeError(f\"unexpected step: {step!r}\")  # checker can't tell this is exhaustive",
-      "correct": "from typing import assert_never\n\ndef process_step(step: Step) -> Result:\n    if isinstance(step, InitStep): return init()\n    if isinstance(step, RunStep):  return run()\n    if isinstance(step, DoneStep): return done()\n    assert_never(step)  # pyright/mypy: error if Step grows a new variant",
-      "explanation": "`typing.assert_never()` (Python 3.11+) is the right tool for \"I've handled every variant of this union.\" Static checkers treat the call site as unreachable \u2014 if the union grows a new member, the checker reports the missed branch as a type error *before* the code ships. At runtime it raises `AssertionError`, so a missed case still fails loudly even if the checker is bypassed."
+      "incorrect": "Step = InitStep | RunStep | DoneStep\n\ndef process_step(step: Step) -> Result:\n    if isinstance(step, InitStep): return init()\n    if isinstance(step, RunStep):  return run()\n    if isinstance(step, DoneStep): return done()\n    raise RuntimeError(f\"unexpected step: {step!r}\")  # adding PausedStep slips past the checker",
+      "correct": "from typing import assert_never\n\ndef process_step(step: Step) -> Result:\n    match step:\n        case InitStep(): return init()\n        case RunStep():  return run()\n        case DoneStep(): return done()\n        case _:\n            assert_never(step)",
+      "explanation": "`typing.assert_never()` (Python 3.11+) tells static checkers \"every variant has been handled here.\" If the union later grows a new member, the checker reports the missed branch as a type error before the code ships. At runtime it raises `AssertionError`, so a missed case still fails loudly even if the checker is bypassed. This is separate from `assert` \u2014 that statement is debug-only and can be stripped under `-O`."
     },
     {
       "rule": "error-consolidate-try-except",
       "title": "Consolidate try/except Blocks with the Same Handler",
-      "impact": "MEDIUM-HIGH",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "error",
         "exceptions",
@@ -334,12 +334,12 @@
       ],
       "incorrect": "def write_report(path: Path, rows: list[Row]) -> None:\n    f = path.open(\"w\")\n    for row in rows:\n        f.write(format_row(row))   # if this raises, f is never closed\n    f.close()",
       "correct": "def write_report(path: Path, rows: list[Row]) -> None:\n    with path.open(\"w\") as f:\n        for row in rows:\n            f.write(format_row(row))",
-      "explanation": "Any object that owns a finite resource \u2014 file handles, network sockets, database connections, locks, temporary directories, HTTP clients, GPU contexts \u2014 should be acquired with `with` (or `async with`). The context-manager protocol guarantees `__exit__` runs even when the body raises, so cleanup happens deterministically. Manual `close()` calls forget to fire on exceptions, leak resources under failure, and are easy to misorder during refactors."
+      "explanation": "Any object that owns a finite resource \u2014 files, sockets, DB connections, locks, temp dirs, HTTP clients, GPU contexts \u2014 should be acquired with `with` (or `async with`). The protocol guarantees `__exit__` runs even when the body raises, so cleanup happens deterministically. Manual `close()` forgets to fire on exceptions, leaks resources under failure, and is easy to misorder during refactors."
     },
     {
       "rule": "error-inherit-base-exceptions",
       "title": "Inherit New Exceptions from Existing Base Exceptions",
-      "impact": "MEDIUM-HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "error",
         "exceptions",
@@ -351,36 +351,9 @@
       "explanation": "When adding a new exception type to a module that already has an exception hierarchy, inherit from the relevant base. Callers that catch the base will continue to catch the new type; skipping the base forces every caller to add a new `except` branch."
     },
     {
-      "rule": "error-no-bare-except",
-      "title": "Never Use Bare `except:`",
-      "impact": "HIGH",
-      "tags": [
-        "error",
-        "exceptions",
-        "bare-except"
-      ],
-      "incorrect": "while True:\n    try:\n        process_one()\n    except:                      # E722: bare except\n        log(\"retrying\")\n        time.sleep(1)",
-      "correct": "while True:\n    try:\n        process_one()\n    except (TimeoutError, ConnectionError) as exc:\n        log(\"retrying\", exc_info=exc)\n        time.sleep(1)\n    # KeyboardInterrupt, SystemExit, CancelledError propagate as they should",
-      "explanation": "`except:` (with no exception type) catches **`BaseException`** \u2014 every exception in the interpreter, including the ones you must not silently swallow:"
-    },
-    {
-      "rule": "error-preserve-cancellation",
-      "title": "Preserve Asyncio Cancellation Semantics",
-      "impact": "HIGH",
-      "tags": [
-        "error",
-        "asyncio",
-        "cancellation",
-        "anyio"
-      ],
-      "incorrect": "async def fetch_with_retry() -> Result | None:\n    try:\n        return await upstream.get()\n    except BaseException:          # catches CancelledError\n        logger.warning(\"fetch failed\")\n        return None                # task now \"completes\" despite being cancelled",
-      "correct": "async def fetch_with_retry() -> Result | None:\n    try:\n        return await upstream.get()\n    except asyncio.CancelledError:\n        raise                      # cancellation must propagate\n    except Exception:\n        logger.warning(\"fetch failed\", exc_info=True)\n        return None",
-      "explanation": "Cancellation in asyncio is delivered by raising `CancelledError` inside the running task. Swallow it and the task hangs past its lifetime; false-flag code that already handles it correctly and you waste review cycles and churn working code."
-    },
-    {
       "rule": "error-raise-from-for-chains",
       "title": "Use raise ... from to Preserve Exception Causality",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "error",
         "exceptions",
@@ -394,7 +367,7 @@
     {
       "rule": "error-repr-in-messages",
       "title": "Use !r Format for Identifiers in Error Messages",
-      "impact": "MEDIUM",
+      "impact": "LOW",
       "tags": [
         "error",
         "formatting",
@@ -412,11 +385,12 @@
       "tags": [
         "error",
         "exceptions",
-        "defensive"
+        "asyncio",
+        "cancellation"
       ],
-      "incorrect": "def fetch_user(user_id: str) -> User | None:\n    try:\n        response = http.get(f\"/users/{user_id}\")\n        return parse_user(response.json())\n    except Exception:  # catches everything \u2014 including your own bugs\n        return None",
-      "correct": "def fetch_user(user_id: str) -> User | None:\n    try:\n        response = http.get(f\"/users/{user_id}\")\n    except (HTTPError, TimeoutError):\n        return None\n    return parse_user(response.json())  # bugs here propagate as they should",
-      "explanation": "Catch the specific exception types you actually intend to handle. A broad `except Exception:` catches every regular error in your codebase, including bugs you wanted to see. (For the even worse `except:` with no type at all \u2014 which also catches `KeyboardInterrupt` and `SystemExit` \u2014 see `error-no-bare-except`.) Agents default to broad handlers because \"we should be resilient\"; the cost is that `KeyError` from a typo in your own code gets silently swallowed alongside the network timeout you meant to handle."
+      "incorrect": "def fetch_user(user_id: str) -> User | None:\n    try:\n        response = http.get(f\"/users/{user_id}\")\n        return parse_user(response.json())\n    except Exception:  # swallows KeyError from a typo in parse_user\n        return None",
+      "correct": "def fetch_user(user_id: str) -> User | None:\n    try:\n        response = http.get(f\"/users/{user_id}\")\n    except (HTTPError, TimeoutError):\n        return None\n    return parse_user(response.json())  # bugs here propagate",
+      "explanation": "Catch the exception types you intend to handle. A broad `except Exception:` catches every regular error including your own bugs. A bare `except:` or `except BaseException:` is worse \u2014 it also catches `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`, which must propagate."
     },
     {
       "rule": "error-trust-validated-state",
@@ -428,14 +402,14 @@
         "defensive",
         "trust-boundary"
       ],
-      "incorrect": "from pydantic import BaseModel, model_validator\n\nclass ValidatedOrder(BaseModel):\n    model_config = {\"frozen\": True}\n    items: list[Item]\n    total: int\n\n    @model_validator(mode=\"after\")\n    def _check(self) -> \"ValidatedOrder\":\n        if not self.items:\n            raise ValueError(\"order must have items\")\n        if self.total < 0:\n            raise ValueError(\"total must be non-negative\")\n        return self\n\n\ndef fulfill_order(order: ValidatedOrder) -> None:\n    if order is None:             # type already excludes None\n        raise ValueError(\"order required\")\n    if not order.items:           # validator guarantees this\n        raise ValueError(\"order must have items\")\n    if order.total < 0:           # validator guarantees this\n        raise ValueError(\"total must be non-negative\")\n\n    for item in order.items:\n        process(item)",
+      "incorrect": "class ValidatedOrder(BaseModel):\n    model_config = {\"frozen\": True}\n    items: list[Item]\n    total: int\n\n    @model_validator(mode=\"after\")\n    def _check(self) -> \"ValidatedOrder\":\n        if not self.items:\n            raise ValueError(\"order must have items\")\n        if self.total < 0:\n            raise ValueError(\"total must be non-negative\")\n        return self\n\n\ndef fulfill_order(order: ValidatedOrder) -> None:\n    if not order.items:           # validator guarantees this\n        raise ValueError(\"order must have items\")\n    if order.total < 0:           # validator guarantees this\n        raise ValueError(\"total must be non-negative\")\n    for item in order.items:\n        process(item)",
       "correct": "def fulfill_order(order: ValidatedOrder) -> None:\n    for item in order.items:\n        process(item)",
-      "explanation": "Once a value has been validated *and the validated object is immutable, locally constructed, and stays inside the same trust domain*, internal helpers can skip re-checking it. Outside that narrow case, defensive checks may still earn their keep \u2014 mutable objects can drift, plugin/untyped callers can construct bad instances, and rehydrated objects (from a cache, a queue, the database) cross a trust boundary even if the type name is the same."
+      "explanation": "Once a value has been validated *and the validated object is immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation."
     },
     {
       "rule": "error-validate-at-boundaries",
       "title": "Validate Input at System Boundaries",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "error",
         "validation",
@@ -443,7 +417,7 @@
       ],
       "incorrect": "def process_order(order_id: str) -> None:\n    if not order_id:\n        raise ValueError(\"order_id required\")\n    order = load_order(order_id)\n    fulfill(order)\n\ndef load_order(order_id: str) -> Order:\n    if not order_id:  # checked again\n        raise ValueError(\"order_id required\")\n    ...\n\ndef fulfill(order: Order) -> None:\n    if not order.id:  # and again\n        raise ValueError(\"order has no id\")\n    ...",
       "correct": "# boundary: the API handler\ndef handle_fulfill_request(req: Request) -> Response:\n    try:\n        body = FulfillRequest.model_validate(req.json())  # Pydantic does the work\n    except ValidationError as e:\n        return error_response(400, str(e))\n\n    process_order(body.order_id)\n    return success_response()\n\n# internal: takes a validated value, trusts it\ndef process_order(order_id: OrderId) -> None:\n    order = load_order(order_id)\n    fulfill(order)",
-      "explanation": "Validate once, at the edge \u2014 not repeatedly in every internal function. Agents tend to sprinkle defensive checks throughout the call chain \"in case something got through.\" Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value."
+      "explanation": "Validate once, at the edge \u2014 not repeatedly in every internal function. Sprinkling defensive checks throughout the call chain \"in case something got through\" bloats internals without catching anything a boundary check didn't. Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value."
     },
     {
       "rule": "imports-no-duplicates",
@@ -468,40 +442,40 @@
         "startup",
         "performance"
       ],
-      "incorrect": "# config.py\nimport requests\n\nCONFIG = requests.get(\"https://config.example.com/v1\").json()  # runs on import\nDB_URL = CONFIG[\"db_url\"]",
-      "correct": "# config.py\nfrom functools import cache\nimport requests\n\n@cache\ndef get_config() -> dict[str, object]:\n    return requests.get(\"https://config.example.com/v1\").json()\n\ndef db_url() -> str:\n    return get_config()[\"db_url\"]",
-      "explanation": "Importing a module should do as little as possible. Anything at module top-level \u2014 opening files, reading environment variables, building large data structures, connecting to databases, registering global handlers, hitting the network \u2014 runs every time *anything* in that module is imported. That cost compounds across CLIs (cold-start latency users feel), tests (collection time), worker pools (per-process startup), and serverless functions (cold-start time billed). Heavy import-time side effects also make modules hard to mock and hard to import in the wrong environment."
+      "incorrect": "# config.py\nimport requests\n\nCONFIG = requests.get(\"https://config.example.com/v1\").json()  # network at import\nDB_URL = CONFIG[\"db_url\"]\n\n# embeddings.py\nMODEL = SentenceTransformer(\"all-MiniLM-L6-v2\")                # 90 MB download + GPU init\n\n# keys.py\nAPI_KEY = os.environ[\"MY_API_KEY\"]                             # KeyError on import if unset",
+      "correct": "from functools import cache\n\n@cache\ndef get_config() -> dict[str, object]:\n    return requests.get(\"https://config.example.com/v1\").json()\n\n@cache\ndef get_model() -> \"SentenceTransformer\":\n    from sentence_transformers import SentenceTransformer\n    return SentenceTransformer(\"all-MiniLM-L6-v2\")\n\ndef api_key() -> str:\n    key = os.environ.get(\"MY_API_KEY\")\n    if not key:\n        raise RuntimeError(\"MY_API_KEY is required to call this API\")\n    return key",
+      "explanation": "Anything at module top-level \u2014 opening files, reading env vars, building large data structures, connecting to databases, registering handlers, hitting the network \u2014 runs every time anything in that module is imported. That cost compounds across CLI cold-starts, test collection, worker pools, and serverless functions. It also makes modules hard to mock. Push side effects into functions, factories, or lazy properties that callers invoke explicitly."
     },
     {
       "rule": "imports-optional-dependencies",
       "title": "Handle Optional Dependencies Explicitly",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "imports",
         "optional-dependencies",
         "packaging"
       ],
-      "incorrect": "import anthropic\n\nclass AnthropicProvider:\n    ...",
+      "incorrect": "try:\n    import anthropic\nexcept ImportError:\n    anthropic = None  # downstream code crashes with AttributeError later\n\nclass AnthropicProvider:\n    def __init__(self):\n        client = anthropic.Client()  # AttributeError: 'NoneType' has no 'Client'",
       "correct": "try:\n    import anthropic\nexcept ImportError as e:\n    raise ImportError(\n        \"anthropic is required for AnthropicProvider. \"\n        \"Install with: pip install 'mylib[anthropic]'\"\n    ) from e\n\nclass AnthropicProvider:\n    ...",
-      "explanation": "When a package has optional integrations (e.g., Anthropic support in a multi-provider library), importing the module should not require every optional dep. Handle `ImportError` at module scope with a helpful message pointing to the install extra."
+      "explanation": "When a package has optional integrations, importing the module should not require every optional dep. Handle `ImportError` at module scope with a message pointing to the install extra; raising `None`-valued placeholders produces `AttributeError` far from the root cause."
     },
     {
       "rule": "imports-remove-unused",
       "title": "Remove Unused Imports",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "imports",
         "dead-code",
         "cleanup"
       ],
       "incorrect": "import json\nimport re\nfrom typing import Any, Optional, Union\n\nfrom .helpers import validate, format_date  # format_date never used\n\ndef compact(data: dict[str, Any]) -> str:\n    return json.dumps(data, separators=(\",\", \":\"))",
-      "correct": "import json\nfrom typing import Any\n\n\ndef compact(data: dict[str, Any]) -> str:\n    return json.dumps(data, separators=(\",\", \":\"))",
-      "explanation": "Every import is a declaration of \"this module depends on X.\" Unused imports lie about dependencies, add reading noise, risk circular imports, and can mask refactoring errors (the import survives long after the only call site was deleted)."
+      "correct": "import json\nfrom typing import Any\n\ndef compact(data: dict[str, Any]) -> str:\n    return json.dumps(data, separators=(\",\", \":\"))",
+      "explanation": "Every import is a declaration of \"this module depends on X.\" Unused imports lie about dependencies, add reading noise, risk circular imports, and mask refactoring errors \u2014 the import survives long after the only call site was deleted."
     },
     {
       "rule": "imports-scope-helpers-to-usage",
       "title": "Scope Helpers and Constants to Their Usage Site",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "structure",
         "scope",
@@ -514,15 +488,15 @@
     {
       "rule": "imports-top-of-file",
       "title": "Place Imports at the Top of the File",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "imports",
         "structure",
         "conventions"
       ],
-      "incorrect": "def fetch_user(user_id: str) -> User:\n    import requests  # hidden dependency\n    response = requests.get(f\"/users/{user_id}\")\n    return User(**response.json())\n\ndef process():\n    from .helpers import validate  # easily missed\n    ...\n    import json  # another one\n    data = json.dumps(result)",
-      "correct": "import json\nfrom typing import Any\n\nimport requests\n\nfrom .helpers import validate\n\n\ndef fetch_user(user_id: str) -> User:\n    response = requests.get(f\"/users/{user_id}\")\n    return User(**response.json())\n\ndef process():\n    ...",
-      "explanation": "Imports belong at the top of the module, in conventional ordering (stdlib, third-party, local). Inline imports inside functions hide dependencies from readers, complicate static analysis, and surprise anyone debugging a `ModuleNotFoundError` raised in the middle of a call."
+      "incorrect": "def fetch_user(user_id: str) -> User:\n    import requests  # hidden dependency\n    response = requests.get(f\"/users/{user_id}\")\n    return User(**response.json())\n\ndef process():\n    from .helpers import validate  # easily missed\n    import json                    # another one\n    data = json.dumps(result)",
+      "correct": "import json\nfrom typing import Any\n\nimport requests\n\nfrom .helpers import validate\n\n\ndef fetch_user(user_id: str) -> User:\n    response = requests.get(f\"/users/{user_id}\")\n    return User(**response.json())",
+      "explanation": "Imports belong at the top of the module, grouped (stdlib, third-party, local) with blank lines between groups. Inline imports inside functions hide dependencies from readers, confuse static analysis, and surprise anyone debugging a `ModuleNotFoundError` raised in the middle of a call. `ruff` / `isort` automate the grouping."
     },
     {
       "rule": "naming-consistent-terminology",
@@ -540,7 +514,7 @@
     {
       "rule": "naming-drop-redundant-prefixes",
       "title": "Drop Redundant Prefixes When Context Is Clear",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "naming",
         "prefixes",
@@ -548,12 +522,12 @@
       ],
       "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass ToolConfig:\n    tool_name: str\n    tool_description: str\n    tool_version: str\n    tool_timeout: float",
       "correct": "@dataclass\nclass ToolConfig:\n    name: str\n    description: str\n    version: str\n    timeout: float",
-      "explanation": "When a field is accessed as `tool_config.tool_description`, the `tool_` prefix adds nothing \u2014 the class name already provides that context. Agents tend to repeat the class name in every field (\"just to be clear\") \u2014 the result is noise that makes real information harder to find."
+      "explanation": "When a field is accessed as `tool_config.tool_description`, the `tool_` prefix adds nothing \u2014 the class name already provides that context. Repeating the class name in every field (\"just to be clear\") produces noise that makes real information harder to find."
     },
     {
       "rule": "naming-no-type-suffixes",
       "title": "Avoid Redundant Type Suffixes in Names",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "naming",
         "types",
@@ -561,7 +535,7 @@
       ],
       "incorrect": "def filter_users(user_list: list[User], active_dict: dict[str, bool]) -> list[User]:\n    name_str = user_list[0].name_str\n    result_list: list[User] = []\n    ...",
       "correct": "def filter_users(users: list[User], active_by_id: dict[str, bool]) -> list[User]:\n    name = users[0].name\n    result: list[User] = []\n    ...",
-      "explanation": "`user_list: list[User]`, `config_dict: dict[str, str]`, `name_str: str` \u2014 the suffix repeats what the type annotation already says. Python has type annotations; let them do the work. Agents default to Hungarian-style naming because \"it makes the type clear\" \u2014 the type is right there."
+      "explanation": "`user_list: list[User]`, `config_dict: dict[str, str]`, `name_str: str` \u2014 the suffix repeats what the type annotation already says. Python has type annotations; let them do the work. Hungarian-style suffixes \"make the type clear\" at the cost of restating what's already on the next token."
     },
     {
       "rule": "naming-rename-on-behavior-change",
@@ -574,38 +548,38 @@
       ],
       "incorrect": "# v1: called only for function tools\ndef _call_function_tool(tool: FunctionTool, args: dict) -> Result:\n    return tool.invoke(args)\n\n# v2: extended to handle output tools too, but name unchanged\ndef _call_function_tool(tool: FunctionTool | OutputTool, args: dict) -> Result:\n    if isinstance(tool, FunctionTool):\n        return tool.invoke(args)\n    return tool.build_output(args)  # wait, this isn't a \"function tool\"",
       "correct": "def _call_tool(tool: FunctionTool | OutputTool, args: dict) -> Result:\n    if isinstance(tool, FunctionTool):\n        return tool.invoke(args)\n    return tool.build_output(args)",
-      "explanation": "A function's name is a promise about what it does. When the behavior changes \u2014 wider scope, different return type, side effects added \u2014 the old name lies. Agents tend to keep names stable because \"it's a smaller diff\"; the cost is that every reader now has to figure out that the name is wrong."
+      "explanation": "A function's name is a promise about what it does. When the behavior changes \u2014 wider scope, different return type, side effects added \u2014 the old name lies. Names often stay stable because \"it's a smaller diff\"; the cost is that every future reader has to figure out the name is wrong."
     },
     {
       "rule": "naming-specific-over-generic",
       "title": "Use Specific Parameter and Variable Names",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "naming",
         "parameters",
         "variables"
       ],
-      "incorrect": "def transfer(id: str, id2: str, data: dict, info: dict) -> None:\n    ...\n\ndef process_tools(id: str) -> None:\n    config = load_config(id)\n    memory = load_memory(id)  # is this the same id, or a different one?\n    ...",
-      "correct": "def transfer(sender_id: str, recipient_id: str, transfer_data: TransferRequest, audit_info: AuditContext) -> None:\n    ...\n\ndef process_tools(toolset_id: str) -> None:\n    config = load_config(toolset_id)\n    memory = load_memory(toolset_id)\n    ...",
-      "explanation": "Generic names like `id`, `name`, `data`, `info` communicate nothing about what the value is. When you have multiple IDs or data objects in scope, they collide. Prefer names that convey the semantic role."
+      "incorrect": "def transfer(id: str, id2: str, data: dict, info: dict) -> None:\n    ...\n\ntransfer(\"u123\", \"t456\", {...}, {...})  # which is sender, which is recipient?",
+      "correct": "def transfer(\n    sender_id: str,\n    recipient_id: str,\n    transfer_data: TransferRequest,\n    audit_info: AuditContext,\n) -> None:\n    ...",
+      "explanation": "Generic names like `id`, `name`, `data`, `info` communicate nothing about the value's role. When multiple IDs or data objects share a scope, they collide. Names that convey the semantic role make call sites self-documenting."
     },
     {
       "rule": "naming-upper-case-constants",
       "title": "Use UPPER_CASE for Module Constants",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "naming",
         "constants",
         "conventions"
       ],
-      "incorrect": "# mymodule.py\ndefault_timeout = 30\nmax_retries = 3\nallowed_hosts = frozenset({\"localhost\", \"127.0.0.1\"})\n\ndef fetch(url: str) -> Response:\n    for attempt in range(max_retries):\n        try:\n            return http.get(url, timeout=default_timeout)\n        except TimeoutError:\n            continue",
-      "correct": "# mymodule.py\nDEFAULT_TIMEOUT = 30\nMAX_RETRIES = 3\nALLOWED_HOSTS = frozenset({\"localhost\", \"127.0.0.1\"})\n\ndef fetch(url: str) -> Response:\n    for attempt in range(MAX_RETRIES):\n        try:\n            return http.get(url, timeout=DEFAULT_TIMEOUT)\n        except TimeoutError:\n            continue",
-      "explanation": "Module-level values that don't change during execution are constants. The `UPPER_CASE` convention signals \"don't reassign this\" and is widely recognized across Python codebases. Agents often leave constants as regular `lower_case` \u2014 the convention is cheap and the signal is strong."
+      "incorrect": "default_timeout = 30\nmax_retries = 3\nallowed_hosts = frozenset({\"localhost\", \"127.0.0.1\"})",
+      "correct": "DEFAULT_TIMEOUT = 30\nMAX_RETRIES = 3\nALLOWED_HOSTS = frozenset({\"localhost\", \"127.0.0.1\"})\n_DEFAULT_CACHE_SIZE = 512",
+      "explanation": "Module-level values that don't change during execution are constants. The `UPPER_CASE` convention signals \"don't reassign this\" and is widely recognized across Python codebases. A reader seeing `default_timeout` can't tell at a glance whether it's a constant or a mutable config someone might reassign."
     },
     {
       "rule": "perf-combine-iterations",
       "title": "Combine Filter and Map Into One Pass",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "perf",
         "iteration",
@@ -618,7 +592,7 @@
     {
       "rule": "perf-compile-regex-module-level",
       "title": "Compile Static Regex Patterns at Module Level",
-      "impact": "MEDIUM",
+      "impact": "LOW",
       "tags": [
         "perf",
         "regex",
@@ -640,12 +614,12 @@
       ],
       "incorrect": "def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:\n    result = []\n    for user in users:\n        matching = None\n        for profile in profiles:\n            if profile.user_id == user.id:\n                matching = profile\n                break\n        result.append(EnrichedUser(user=user, profile=matching))\n    return result",
       "correct": "def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:\n    profiles_by_user = {p.user_id: p for p in profiles}\n    return [\n        EnrichedUser(user=user, profile=profiles_by_user.get(user.id))\n        for user in users\n    ]",
-      "explanation": "When code says \"for each item in A, find the matching item in B,\" agents default to nested `for` + `if x.id == y.id`. That's O(n \u00d7 m). Build a dict from B once, then it's O(n + m) total with the body of the loop becoming a single lookup."
+      "explanation": "When code says \"for each item in A, find the matching item in B,\" the naive pattern is nested `for` + `if x.id == y.id` \u2014 that's O(n \u00d7 m). Build a dict from B once, then it's O(n + m) with each lookup O(1)."
     },
     {
       "rule": "perf-generator-over-list",
       "title": "Stream with Generators When Memory or First-Result Latency Matters",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "perf",
         "generators",
@@ -654,7 +628,7 @@
       ],
       "incorrect": "def count_errors(path: Path) -> int:\n    lines = path.read_text().splitlines()                    # full file in memory\n    parsed = [parse_line(line) for line in lines]            # second full copy\n    matching = [p for p in parsed if p.level == \"ERROR\"]     # third full copy\n    return len(matching)",
       "correct": "def count_errors(path: Path) -> int:\n    with path.open() as f:\n        return sum(1 for line in f if parse_line(line).level == \"ERROR\")",
-      "explanation": "Generators trade materialization for laziness: they yield one value at a time, hold no intermediate list, and let the caller stop early. This is a **memory and streaming** rule, not a \"generators are categorically better than lists\" rule. When you need every result anyway, iterate the sequence more than once, want random access, or want to sort it \u2014 a list comprehension is the right tool, often clearer and sometimes faster (no `next()` overhead per element)."
+      "explanation": "Generators trade materialization for laziness: one value at a time, no intermediate list, caller can stop early. This is a memory and streaming rule, not \"generators are categorically better.\" When you need every result, re-iterate, want random access, or will sort anyway, a list comprehension is often clearer and sometimes faster."
     },
     {
       "rule": "perf-isinstance-tuple-syntax",
@@ -673,7 +647,7 @@
     {
       "rule": "perf-lru-cache-pure-fns",
       "title": "Use functools.lru_cache for Pure Functions",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "perf",
         "lru-cache",
@@ -701,7 +675,7 @@
     {
       "rule": "perf-type-adapter-constant",
       "title": "Define TypeAdapter Instances at Module Level",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "perf",
         "pydantic",
@@ -710,13 +684,13 @@
         "applicability:pydantic"
       ],
       "incorrect": "from pydantic import TypeAdapter\n\ndef parse_users(raw: bytes) -> list[User]:\n    adapter = TypeAdapter(list[User])  # schema built every call\n    return adapter.validate_json(raw)",
-      "correct": "from pydantic import TypeAdapter\n\n_USERS_ADAPTER: TypeAdapter[list[User]] = TypeAdapter(list[User])\n\ndef parse_users(raw: bytes) -> list[User]:\n    return _USERS_ADAPTER.validate_json(raw)",
+      "correct": "_USERS_ADAPTER: TypeAdapter[list[User]] = TypeAdapter(list[User])\n\ndef parse_users(raw: bytes) -> list[User]:\n    return _USERS_ADAPTER.validate_json(raw)",
       "explanation": ""
     },
     {
       "rule": "simplify-any-all-builtins",
       "title": "Use any() / all() Over Boolean-Flag Loops",
-      "impact": "MEDIUM",
+      "impact": "LOW",
       "tags": [
         "simplify",
         "builtins",
@@ -737,27 +711,27 @@
         "performance",
         "threading"
       ],
-      "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass Report:\n    rows: list[Row]\n\n    def summary_stats(self) -> Stats:  # expensive, called many times\n        return compute_stats(self.rows)",
-      "correct": "from dataclasses import dataclass, field\nfrom functools import cached_property\n\n@dataclass(frozen=True)\nclass Report:\n    rows: tuple[Row, ...]  # immutable container; cannot be mutated after construction\n\n    @cached_property\n    def summary_stats(self) -> Stats:\n        return compute_stats(self.rows)",
-      "explanation": "`@cached_property` is the right tool when the cached value is **derived from effectively immutable inputs**, the getter is **idempotent**, the class **has a writable `__dict__`**, and the instance is not shared across threads racing on first access. Outside that envelope, the convenience masks real bugs: stale caches when inputs mutate, `TypeError` on `__slots__` classes that omit `__dict__`, and duplicated computation when two threads hit the property simultaneously."
+      "incorrect": "from functools import cached_property\nfrom dataclasses import dataclass, field\n\n@dataclass\nclass Report:\n    rows: list[Row] = field(default_factory=list)  # callers can append\n\n    @cached_property\n    def summary_stats(self) -> Stats:\n        return compute_stats(self.rows)\n\nr = Report()\nr.summary_stats          # caches based on empty rows\nr.rows.append(new_row)   # mutates input\nr.summary_stats          # still the old cached Stats \u2014 stale, no warning",
+      "correct": "@dataclass(frozen=True)\nclass Report:\n    rows: tuple[Row, ...]\n\n    @cached_property\n    def summary_stats(self) -> Stats:\n        return compute_stats(self.rows)",
+      "explanation": "`@cached_property` defers expensive derivations until first access and caches the result in `instance.__dict__`. It fits when the inputs are effectively immutable, the getter is idempotent, the class has a writable `__dict__`, and nothing is racing on first access. Outside that envelope it masks real bugs: stale caches when inputs mutate, `TypeError` on `__slots__` classes without `__dict__`, and duplicated work when two threads hit the property simultaneously."
     },
     {
       "rule": "simplify-comprehensions",
       "title": "Use Comprehensions Over for+append Loops",
-      "impact": "MEDIUM-HIGH",
+      "impact": "LOW",
       "tags": [
         "simplify",
         "comprehensions",
         "idioms"
       ],
-      "incorrect": "def active_usernames(users: list[User]) -> list[str]:\n    result = []\n    for user in users:\n        if user.is_active:\n            result.append(user.name)\n    return result\n\ndef name_to_id(users: list[User]) -> dict[str, str]:\n    mapping = {}\n    for user in users:\n        mapping[user.name] = user.id\n    return mapping",
-      "correct": "def active_usernames(users: list[User]) -> list[str]:\n    return [user.name for user in users if user.is_active]\n\ndef name_to_id(users: list[User]) -> dict[str, str]:\n    return {user.name: user.id for user in users}",
-      "explanation": "Comprehensions express \"build a collection from an iterable\" in one line. Agents often write C-style loops with `append()` \u2014 more code, more variables, more places for off-by-one and wrong-list bugs. Reach for a comprehension by default."
+      "incorrect": "def active_usernames(users: list[User]) -> list[str]:\n    result = []\n    for user in users:\n        if user.is_active:\n            result.append(user.name)\n    return result",
+      "correct": "def active_usernames(users: list[User]) -> list[str]:\n    return [user.name for user in users if user.is_active]\n\nname_to_id = {user.name: user.id for user in users}\nunique_tags = {tag for post in posts for tag in post.tags}\ntotal = sum(item.price for item in items)   # generator, no intermediate list",
+      "explanation": "Comprehensions express \"build a collection from an iterable\" in one line. C-style loops with `append()` have more variables and more places for off-by-one and wrong-list bugs. Reach for a comprehension by default."
     },
     {
       "rule": "simplify-early-return",
       "title": "Return Early to Flatten Control Flow",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "simplify",
         "control-flow",
@@ -765,12 +739,12 @@
       ],
       "incorrect": "def process_request(req: Request) -> Response:\n    if req.authenticated:\n        if req.authorized:\n            if req.body is not None:\n                if req.body.is_valid:\n                    return do_process(req.body)\n                else:\n                    return error(400, \"invalid body\")\n            else:\n                return error(400, \"missing body\")\n        else:\n            return error(403, \"forbidden\")\n    else:\n        return error(401, \"unauthenticated\")",
       "correct": "def process_request(req: Request) -> Response:\n    if not req.authenticated:\n        return error(401, \"unauthenticated\")\n    if not req.authorized:\n        return error(403, \"forbidden\")\n    if req.body is None:\n        return error(400, \"missing body\")\n    if not req.body.is_valid:\n        return error(400, \"invalid body\")\n\n    return do_process(req.body)",
-      "explanation": "When a function has preconditions to check, return as soon as one fails. Agents tend to write deeply nested \"if valid, if authorized, if ...\" pyramids \u2014 the happy path ends up buried five levels in. Guard clauses flatten the structure and make the happy path the most visible branch."
+      "explanation": "When a function has preconditions to check, return as soon as one fails. Deeply nested \"if valid, if authorized, if ...\" pyramids bury the happy path five levels in. Guard clauses flatten the structure and make the happy path the most visible branch."
     },
     {
       "rule": "simplify-extract-after-duplication",
       "title": "Extract Helpers After 2+ Occurrences",
-      "impact": "MEDIUM-HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "simplify",
         "extraction",
@@ -778,12 +752,12 @@
       ],
       "incorrect": "def handle_stream(stream: AsyncIterator[Chunk]) -> Response:\n    collected = []\n    async for chunk in stream:\n        if chunk.kind == \"text\":\n            collected.append(chunk.text)\n        elif chunk.kind == \"tool\":\n            collected.append(format_tool(chunk))\n    return Response(content=\"\".join(collected))\n\ndef handle_non_stream(response: RawResponse) -> Response:\n    collected = []\n    for chunk in response.chunks:\n        if chunk.kind == \"text\":\n            collected.append(chunk.text)\n        elif chunk.kind == \"tool\":\n            collected.append(format_tool(chunk))\n    return Response(content=\"\".join(collected))",
       "correct": "def _format_chunk(chunk: Chunk) -> str:\n    match chunk.kind:\n        case \"text\": return chunk.text\n        case \"tool\": return format_tool(chunk)\n        case _: return \"\"\n\nasync def handle_stream(stream: AsyncIterator[Chunk]) -> Response:\n    parts = [_format_chunk(c) async for c in stream]\n    return Response(content=\"\".join(parts))\n\ndef handle_non_stream(response: RawResponse) -> Response:\n    parts = [_format_chunk(c) for c in response.chunks]\n    return Response(content=\"\".join(parts))",
-      "explanation": "The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. Agents tend to copy-paste a third time because \"extracting is a bigger change\"; the cost is bugs where two copies evolved in subtly different directions."
+      "explanation": "The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. The third copy-paste often happens because \"extracting is a bigger change\"; the cost is bugs where copies evolved in subtly different directions."
     },
     {
       "rule": "simplify-fallback-or",
       "title": "Use x or default for Fallback Values",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "simplify",
         "fallback",
@@ -796,7 +770,7 @@
     {
       "rule": "simplify-flatten-nested-if",
       "title": "Flatten Nested if Statements Into and Conditions",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "simplify",
         "control-flow",
@@ -804,12 +778,12 @@
       ],
       "incorrect": "def should_notify(user: User, event: Event) -> bool:\n    if user.is_active:\n        if user.notifications_enabled:\n            if event.priority >= user.notification_threshold:\n                return True\n    return False",
       "correct": "def should_notify(user: User, event: Event) -> bool:\n    return (\n        user.is_active\n        and user.notifications_enabled\n        and event.priority >= user.notification_threshold\n    )",
-      "explanation": "When nested `if` statements share the same body and have no intervening code, collapse them into a single `if` with `and`. The nested form implies the branches do something different; when they don't, the structure lies."
+      "explanation": "When nested `if` statements share the same body with no intervening code, collapse them into a single `if` with `and`. The nested form implies the branches do something different; when they don't, the structure lies."
     },
     {
       "rule": "simplify-inline-single-use-vars",
       "title": "Inline Single-Use Intermediate Variables",
-      "impact": "LOW-MEDIUM",
+      "impact": "LOW",
       "tags": [
         "simplify",
         "variables",
@@ -817,12 +791,12 @@
       ],
       "incorrect": "def top_admins(users: list[User], limit: int) -> list[User]:\n    filtered_users = [u for u in users if u.is_admin]\n    sorted_users = sorted(filtered_users, key=lambda u: u.rank)\n    result = sorted_users[:limit]\n    return result",
       "correct": "def top_admins(users: list[User], limit: int) -> list[User]:\n    return sorted(\n        (u for u in users if u.is_admin),\n        key=lambda u: u.rank,\n    )[:limit]",
-      "explanation": "When a variable is assigned once and used once immediately after, inlining it removes a name that doesn't earn its keep. Agents tend to introduce `_filtered`, `_cleaned`, `_copy` intermediates \"for clarity\" \u2014 but the clarity is usually from the name, and if the name isn't informative, the variable is just noise."
+      "explanation": "When a variable is assigned once and used once immediately after, inlining it removes a name that doesn't earn its keep. Intermediates like `_filtered`, `_cleaned`, `_copy` show up \"for clarity\" \u2014 but the clarity is usually from the name, and if the name isn't informative, the variable is just noise."
     },
     {
       "rule": "simplify-remove-dead-code",
       "title": "Remove Commented-Out and Dead Code",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "simplify",
         "dead-code",
@@ -835,7 +809,7 @@
     {
       "rule": "types-avoid-any",
       "title": "Avoid Any Annotations",
-      "impact": "CRITICAL",
+      "impact": "MEDIUM",
       "tags": [
         "types",
         "any",
@@ -844,7 +818,7 @@
       ],
       "incorrect": "from typing import Any\n\ndef process_items(items: Any) -> Any:\n    return [transform(item) for item in items]\n\ndef transform(item: Any) -> Any:\n    return item.value.upper()",
       "correct": "from typing import Protocol\n\nclass HasValue(Protocol):\n    value: str\n\ndef process_items(items: list[HasValue]) -> list[str]:\n    return [transform(item) for item in items]\n\ndef transform(item: HasValue) -> str:\n    return item.value.upper()",
-      "explanation": "`Any` turns off the type checker for that value \u2014 it accepts anything, produces anything, and propagates silently into every call site that consumes it. Agents reach for `Any` when the right type feels hard; almost always, a `Protocol`, `TypeVar`, or `Union` is available."
+      "explanation": "`Any` turns off the type checker for that value \u2014 it accepts anything, produces anything, and propagates silently into every call site that consumes it. `Any` is common when the right type feels hard to write; almost always, a `Protocol`, `TypeVar`, or `Union` is available."
     },
     {
       "rule": "types-fix-errors-not-ignore",
@@ -858,12 +832,12 @@
       ],
       "incorrect": "def compute(items: list[int] | None) -> int:\n    return sum(items)  # type: ignore  # noqa",
       "correct": "def compute(items: list[int] | None) -> int:\n    if items is None:\n        return 0\n    return sum(items)",
-      "explanation": "`# type: ignore` and `# pyright: ignore` silence the checker \u2014 but the underlying problem stays. Agents reach for ignore comments when a type looks hard; each one degrades the signal from every future run. Fix the error properly, and when a suppression is genuinely unavoidable, document why."
+      "explanation": "`# type: ignore` and `# pyright: ignore` silence the checker \u2014 but the underlying problem stays. Ignore comments are common when a type looks hard; each one degrades the signal from every future run. Fix the error properly, and when a suppression is genuinely unavoidable, document why."
     },
     {
       "rule": "types-fix-types-not-cast",
       "title": "Fix Type Definitions Instead of cast()",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "types",
         "cast",
@@ -876,7 +850,7 @@
     {
       "rule": "types-isinstance-for-narrowing",
       "title": "Use isinstance() for Type Checking, Not hasattr/getattr",
-      "impact": "CRITICAL",
+      "impact": "MEDIUM",
       "tags": [
         "types",
         "isinstance",
@@ -885,12 +859,12 @@
       ],
       "incorrect": "def process(part: MessagePart) -> str:\n    if hasattr(part, \"tool_name\"):\n        return f\"Tool: {part.tool_name}\"  # type checker: attribute is Any\n    if getattr(part, \"kind\", None) == \"text\":\n        return part.text  # type checker: does part.text exist? unclear\n    if type(part).__name__ == \"ImagePart\":\n        return f\"Image: {part.url}\"  # fragile: renaming ImagePart breaks this\n    return \"unknown\"",
       "correct": "def process(part: MessagePart) -> str:\n    if isinstance(part, ToolPart):\n        return f\"Tool: {part.tool_name}\"  # narrowed to ToolPart\n    if isinstance(part, TextPart):\n        return part.text                    # narrowed to TextPart\n    if isinstance(part, ImagePart):\n        return f\"Image: {part.url}\"         # narrowed to ImagePart\n    return \"unknown\"",
-      "explanation": "Type checkers narrow types through `isinstance()` checks, discriminator match statements, and `TypeGuard` functions \u2014 not through `hasattr()`, `getattr()`, or `type(obj).__name__ == \"...\"`. Agents reach for `hasattr` for \"flexibility\"; the actual cost is that the checker can't narrow and refactors silently break string comparisons."
+      "explanation": "Type checkers narrow types through `isinstance()` checks, discriminator match statements, and `TypeGuard` functions \u2014 not through `hasattr()`, `getattr()`, or `type(obj).__name__ == \"...\"`. `hasattr` is common for \"flexibility\"; the actual cost is that the checker can't narrow and refactors silently break string comparisons."
     },
     {
       "rule": "types-literal-for-fixed-sets",
       "title": "Use Literal Types for Fixed String Sets",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "types",
         "literal",
@@ -918,7 +892,7 @@
     {
       "rule": "types-remove-redundant-optional",
       "title": "Remove Redundant `| None` When Values Are Guaranteed",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "types",
         "optional",
@@ -932,7 +906,7 @@
     {
       "rule": "types-trust-the-checker",
       "title": "Trust the Type Checker \u2014 Remove Redundant Runtime Checks",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "types",
         "runtime-checks",
@@ -945,7 +919,7 @@
     {
       "rule": "types-type-checking-imports",
       "title": "Use TYPE_CHECKING for Optional Dependencies",
-      "impact": "MEDIUM",
+      "impact": "LOW-MEDIUM",
       "tags": [
         "types",
         "imports",
@@ -959,16 +933,16 @@
     {
       "rule": "types-typeddict-over-dict-any",
       "title": "Use TypedDict or Dataclass Instead of dict[str, Any]",
-      "impact": "CRITICAL",
+      "impact": "MEDIUM",
       "tags": [
         "types",
         "typeddict",
         "dataclass",
         "any"
       ],
-      "incorrect": "from typing import Any\n\ndef create_user(config: dict[str, Any]) -> User:\n    name = config[\"name\"]          # what type?\n    age = config.get(\"age\", 0)     # what type? what's the default type?\n    prefs = config.get(\"prefs\", {})  # dict or None or the passed-in value?\n    return User(name=name.upper(), age=age + 1, prefs=prefs)",
-      "correct": "from typing import TypedDict, NotRequired\n\nclass UserPreferences(TypedDict):\n    theme: NotRequired[str]\n    notifications: NotRequired[bool]\n\nclass UserConfig(TypedDict):\n    name: str\n    age: NotRequired[int]\n    prefs: NotRequired[UserPreferences]\n\ndef create_user(config: UserConfig) -> User:\n    name = config[\"name\"]                     # str\n    age = config.get(\"age\", 0)                # int\n    prefs = config.get(\"prefs\", {})           # UserPreferences\n    return User(name=name.upper(), age=age + 1, prefs=prefs)",
-      "explanation": "When the shape of a dict is known (config objects, API payloads, structured event data), `dict[str, Any]` is a lie \u2014 the structure exists, it's just not declared. Every access becomes a runtime gamble. `TypedDict` or `dataclass` restores type-checker coverage."
+      "incorrect": "from typing import Any\n\ndef create_user(config: dict[str, Any]) -> User:\n    name = config[\"name\"]            # what type?\n    age = config.get(\"age\", 0)       # what type?\n    prefs = config.get(\"prefs\", {})  # dict or the passed-in value?\n    return User(name=name.upper(), age=age + 1, prefs=prefs)",
+      "correct": "from typing import TypedDict, NotRequired\n\nclass UserConfig(TypedDict):\n    name: str\n    age: NotRequired[int]\n    prefs: NotRequired[\"UserPreferences\"]\n\ndef create_user(config: UserConfig) -> User:\n    return User(name=config[\"name\"].upper(), age=config.get(\"age\", 0))",
+      "explanation": "When the shape of a dict is known \u2014 config objects, API payloads, structured events \u2014 `dict[str, Any]` is a lie about the data. The structure exists; it's just not declared, so every access is a runtime gamble. `TypedDict` or `dataclass` restores type-checker coverage."
     }
   ]
 }

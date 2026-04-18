@@ -1,6 +1,6 @@
 ---
 title: Use any() / all() Over Boolean-Flag Loops
-impact: MEDIUM
+impact: LOW
 impactDescription: shorter, short-circuits, no manual flag management
 tags: simplify, builtins, any, all
 ---

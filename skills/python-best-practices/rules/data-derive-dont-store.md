@@ -1,13 +1,13 @@
 ---
 title: Derive, Don't Store
-impact: CRITICAL
+impact: HIGH
 impactDescription: eliminates flag-sync bugs and halves the state space
 tags: data, state, derivation, architecture
 ---
 
 ## Derive, Don't Store
 
-Every boolean you add doubles the theoretical state space. When a value can be computed from data you already have, do not store it. Agents are tempted to cache derived values "for performance" — the cost is multiple mutation sites that must stay in sync, and they won't.
+Every boolean you add doubles the theoretical state space. When a value can be computed from data you already have, do not store it. Cached derived values require multiple mutation sites to stay in sync — and they won't.
 
 **Incorrect (four flags that must be kept in sync):**
 

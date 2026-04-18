@@ -1,20 +1,17 @@
 ---
 title: Create Explicit Variants Instead of Mode Flags
-impact: CRITICAL
+impact: MEDIUM
 impactDescription: eliminates conditional-logic sprawl
 tags: data, api, architecture, variants
 ---
 
 ## Create Explicit Variants Instead of Mode Flags
 
-When a class starts growing `is_thread`, `is_editing`, `is_forwarding` flags — or a mode parameter like `mode: Literal["thread", "edit", "forward"]` — stop. Each flag doubles the possible states; each mode check adds conditional logic at every call site. Split into explicit subclasses or sibling classes instead.
+When a class grows `is_thread`, `is_editing`, `is_forwarding` flags — or a mode parameter like `mode: Literal["thread", "edit", "forward"]` — stop. Each flag doubles the state space; each mode check adds conditional logic at every call site. Split into explicit classes instead.
 
 **Incorrect (one class, many modes, exponential conditionals):**
 
 ```python
-from dataclasses import dataclass
-from typing import Literal
-
 @dataclass
 class MessageComposer:
     on_submit: Callable[[str], None]
@@ -39,18 +36,15 @@ class MessageComposer:
         return Frame(extra, actions)
 ```
 
-What does this class actually render? Answer: it depends on which of five enum values and three optional IDs are set. The call sites look like `MessageComposer(mode="thread", channel_id=x)` — which is valid? Readers have to look at the implementation to know.
+`MessageComposer(mode="thread", channel_id=x)` — which combinations are valid? Readers have to inspect the implementation to know.
 
-**Correct (explicit variants, each self-contained):**
+**Correct (explicit variants; each self-contained):**
 
 ```python
-from dataclasses import dataclass
-
 @dataclass
 class ChannelComposer:
     channel_id: str
     on_submit: Callable[[str], None]
-
     def render(self) -> Frame:
         return Frame(extra=None, actions=DefaultActions())
 
@@ -58,22 +52,15 @@ class ChannelComposer:
 class ThreadComposer:
     channel_id: str
     on_submit: Callable[[str], None]
-
     def render(self) -> Frame:
-        return Frame(
-            extra=AlsoSendToChannelField(self.channel_id),
-            actions=DefaultActions(),
-        )
+        return Frame(AlsoSendToChannelField(self.channel_id), DefaultActions())
 
 @dataclass
 class EditMessageComposer:
     message_id: str
     on_submit: Callable[[str], None]
-
     def render(self) -> Frame:
         return Frame(extra=None, actions=EditActions())
 ```
 
-Each class declares exactly the fields its variant needs. Impossible combinations are unrepresentable. Call sites read `ChannelComposer(channel_id=x)` — immediately obvious.
-
-**Shared structure:** when variants genuinely share logic, extract helpers or a base class that holds only the common interface — not a mega-class that mode-switches internally.
+Each class declares the fields its variant actually needs. Impossible combinations are unrepresentable. When variants genuinely share logic, extract helpers or a small base class that holds the common interface only — not a mega-class that mode-switches internally.

@@ -1,6 +1,6 @@
 ---
 title: Combine Filter and Map Into One Pass
-impact: LOW-MEDIUM
+impact: LOW
 impactDescription: one iteration instead of two or three
 tags: perf, iteration, comprehensions
 ---

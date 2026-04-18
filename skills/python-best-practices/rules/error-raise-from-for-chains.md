@@ -1,7 +1,7 @@
 ---
 title: Use raise ... from to Preserve Exception Causality
-impact: MEDIUM
-impactDescription: keeps the original traceback visible for debugging
+impact: LOW-MEDIUM
+impactDescription: explicit `__cause__` chain vs implicit `__context__`; often invisible to end callers
 tags: error, exceptions, traceback, chaining
 ---
 

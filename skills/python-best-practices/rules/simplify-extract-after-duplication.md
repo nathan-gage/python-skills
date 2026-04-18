@@ -1,13 +1,13 @@
 ---
 title: Extract Helpers After 2+ Occurrences
-impact: MEDIUM-HIGH
+impact: MEDIUM
 impactDescription: prevents divergent implementations of the same logic
 tags: simplify, extraction, dry
 ---
 
 ## Extract Helpers After 2+ Occurrences
 
-The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. Agents tend to copy-paste a third time because "extracting is a bigger change"; the cost is bugs where two copies evolved in subtly different directions.
+The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. The third copy-paste often happens because "extracting is a bigger change"; the cost is bugs where copies evolved in subtly different directions.
 
 **Incorrect (same logic duplicated across handlers):**
 

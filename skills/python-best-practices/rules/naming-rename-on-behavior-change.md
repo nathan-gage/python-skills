@@ -7,7 +7,7 @@ tags: naming, refactoring, honesty
 
 ## Rename When Behavior Changes
 
-A function's name is a promise about what it does. When the behavior changes — wider scope, different return type, side effects added — the old name lies. Agents tend to keep names stable because "it's a smaller diff"; the cost is that every reader now has to figure out that the name is wrong.
+A function's name is a promise about what it does. When the behavior changes — wider scope, different return type, side effects added — the old name lies. Names often stay stable because "it's a smaller diff"; the cost is that every future reader has to figure out the name is wrong.
 
 **Incorrect (name no longer matches behavior):**
 

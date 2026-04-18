@@ -1,6 +1,6 @@
 ---
 title: Use x or default for Fallback Values
-impact: LOW-MEDIUM
+impact: LOW
 impactDescription: more concise and idiomatic than if/else
 tags: simplify, fallback, or
 ---

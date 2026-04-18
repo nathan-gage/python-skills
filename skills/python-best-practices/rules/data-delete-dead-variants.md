@@ -1,6 +1,6 @@
 ---
 title: Delete Dead Variants
-impact: MEDIUM
+impact: LOW-MEDIUM
 impactDescription: removes code paths that can't be reached
 tags: data, types, unions, dead-code
 ---

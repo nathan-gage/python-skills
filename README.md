@@ -8,7 +8,7 @@ Skills follow the [Agent Skills](https://agentskills.io/) format.
 
 ### python-best-practices
 
-Python software engineering guidelines derived from real PR review patterns. Contains 50+ rules across 8 categories, prioritized by impact.
+Python software engineering guidelines derived from real PR review patterns. 70 rules across 8 categories, prioritized by impact. A rule match is a signal, not a verdict — most rules are design preferences for new code, not bugs to fix across the repo.
 
 **Use when:**
 - Writing new Python modules, functions, classes, or data models
@@ -16,15 +16,15 @@ Python software engineering guidelines derived from real PR review patterns. Con
 - Refactoring dataclasses, Pydantic models, or state-management patterns
 - Designing service interfaces, Protocol boundaries, or exception hierarchies
 
-**Categories covered:**
-- Data Modeling (Critical) — derive over store, discriminated unions, explicit variants, mutation contracts
-- Type Safety (Critical) — precise types, no `Any` drift, `isinstance` over `hasattr`
-- API Design (High) — keyword-only params, private underscores, immutable transforms
-- Error Handling (High) — specific exceptions, fail-fast validation, consolidated try/except
-- Code Simplification (Medium-High) — comprehensions, early returns, Pythonic idioms
-- Performance (Medium) — module-level compilation, set/dict lookups, cached properties
-- Naming (Medium) — specific names, consistent terminology, no type suffixes
-- Imports & Structure (Low-Medium) — top-of-file imports, optional dependency handling
+**Categories covered (typical impact; individual rules may differ):**
+- Data Modeling (High) — mutable defaults, derive-don't-store, discriminated unions, explicit variants, timezone-aware datetimes
+- Error Handling (Medium-High) — specific exceptions, context managers, preserved cancellation, traceback-preserving logs
+- Type Safety (Medium-High) — precise types over `Any`, fix type errors rather than ignore, `isinstance` over `hasattr`
+- API Design (Medium) — keyword-only params, required-before-optional, no boolean-flag soup, private underscores
+- Code Simplification (Low-Medium) — comprehensions, early returns, Pythonic idioms
+- Performance (Low-Medium) — module-level compilation, set/dict lookups, cached properties (on measured hot paths)
+- Naming (Low-Medium) — specific names, consistent terminology, no type suffixes
+- Imports & Structure (Low) — top-of-file imports, no import-time side effects, optional dependency handling
 
 ## Installation
 

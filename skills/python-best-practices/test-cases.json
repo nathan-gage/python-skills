@@ -1,6 +1,6 @@
 {
   "generated_by": "src/extract_tests.py",
-  "count": 69,
+  "count": 70,
   "cases": [
     {
       "rule": "api-deprecated-aliases",
@@ -278,7 +278,7 @@
         "defaults"
       ],
       "incorrect": "def update_user(user_id: str, nickname: str | None = None) -> User:\n    user = db.get(user_id)\n    user.nickname = nickname        # was the caller clearing it, or not passing it?\n    db.save(user)\n    return user",
-      "correct": "from typing import Final\n\nclass _Unset:\n    def __repr__(self) -> str:\n        return \"<unset>\"\n\nUNSET: Final = _Unset()\n\ndef update_user(user_id: str, nickname: str | None | _Unset = UNSET) -> User:\n    user = db.get(user_id)\n    if nickname is not UNSET:\n        user.nickname = nickname     # may be None (cleared) or a real string\n    db.save(user)\n    return user\n\nupdate_user(\"u1\")                    # nickname untouched\nupdate_user(\"u1\", nickname=None)     # nickname cleared\nupdate_user(\"u1\", nickname=\"bob\")    # nickname set to \"bob\"",
+      "correct": "from typing import Final\n\nclass _Unset:\n    def __repr__(self) -> str:\n        return \"UNSET\"\n\nUNSET: Final = _Unset()\n\ndef update_user(user_id: str, nickname: str | None | _Unset = UNSET) -> User:\n    user = db.get(user_id)\n    if nickname is not UNSET:\n        user.nickname = nickname     # may be None (cleared) or a real string\n    db.save(user)\n    return user\n\nupdate_user(\"u1\")                    # nickname untouched\nupdate_user(\"u1\", nickname=None)     # nickname cleared\nupdate_user(\"u1\", nickname=\"bob\")    # nickname set to \"bob\"",
       "explanation": "When `None` carries semantic meaning \u2014 \"user cleared this field,\" \"no parent,\" \"no assignee\" \u2014 `None` can't also be the \"not provided\" default. Use a private sentinel instead. The sentinel is a unique object compared with `is`, never `==`. Complements `types-remove-redundant-optional`: that rule says drop `| None` when `None` is impossible; this one says use a sentinel when `None` is meaningfully different from \"not passed.\""
     },
     {
@@ -349,6 +349,19 @@
       "incorrect": "class ToolError(Exception): ...\nclass ToolTimeoutError(ToolError): ...\nclass ToolValidationError(ToolError): ...\n\n# New failure mode added in v2:\nclass ToolRateLimitError(Exception):  # doesn't inherit from ToolError\n    ...\n\n# Existing caller:\ntry:\n    run_tool(t, args)\nexcept ToolError:  # no longer catches ToolRateLimitError\n    retry()",
       "correct": "class ToolError(Exception): ...\nclass ToolTimeoutError(ToolError): ...\nclass ToolValidationError(ToolError): ...\nclass ToolRateLimitError(ToolError):  # fits the hierarchy\n    ...\n\n# Existing caller still works:\ntry:\n    run_tool(t, args)\nexcept ToolError:  # catches ToolRateLimitError too\n    retry()",
       "explanation": "When adding a new exception type to a module that already has an exception hierarchy, inherit from the relevant base. Callers that catch the base will continue to catch the new type; skipping the base forces every caller to add a new `except` branch."
+    },
+    {
+      "rule": "error-log-exception-context",
+      "title": "Preserve Tracebacks When Logging Exceptions",
+      "impact": "MEDIUM",
+      "tags": [
+        "error",
+        "logging",
+        "observability"
+      ],
+      "incorrect": "try:\n    response = client.fetch(user_id)\nexcept TimeoutError as e:\n    logger.error(\"fetch failed: %s\", e)\n    return None",
+      "correct": "try:\n    response = client.fetch(user_id)\nexcept TimeoutError:\n    logger.exception(\"fetch failed for user_id=%r\", user_id)\n    return None",
+      "explanation": "When you catch an exception to recover or return a fallback, keep the traceback in the log. `logger.error(str(e))` records the message but loses the stack that explains where the failure came from \u2014 which is usually the part that makes the log useful."
     },
     {
       "rule": "error-raise-from-for-chains",
@@ -481,9 +494,9 @@
         "scope",
         "helpers"
       ],
-      "incorrect": "# somewhere in a 500-line module\ndef _normalize_whitespace(text: str) -> str:\n    return \" \".join(text.split())\n\ndef _DEFAULT_MAX_LENGTH() -> int:\n    return 280\n\ndef summarize(text: str) -> str:\n    text = _normalize_whitespace(text)\n    return text[: _DEFAULT_MAX_LENGTH()]\n\n# ... 400 more lines, no other use of _normalize_whitespace or _DEFAULT_MAX_LENGTH",
+      "incorrect": "# somewhere in a 500-line module\n_DEFAULT_MAX_LENGTH = 280\n\ndef summarize(text: str) -> str:\n    normalized = \" \".join(text.split())\n    return normalized[:_DEFAULT_MAX_LENGTH]\n\n# ... 400 more lines, no other use of _DEFAULT_MAX_LENGTH",
       "correct": "def summarize(text: str) -> str:\n    DEFAULT_MAX_LENGTH = 280\n    normalized = \" \".join(text.split())\n    return normalized[:DEFAULT_MAX_LENGTH]",
-      "explanation": "When a helper function or constant is only used in one function or class, define it there \u2014 not at module level \"just in case\" someone else needs it later. Module-level scope is a commitment to every future reader: \"this is part of the module's surface.\""
+      "explanation": "Scope tiny helpers and one-off constants near their only use. Promote a helper to module scope when it is substantial, reused, independently testable, expensive to rebuild, or part of the module's contract. Nested functions are cheap inside a small callable, but stacking nontrivial logic inside another function hurts readability and makes the helper harder to test directly."
     },
     {
       "rule": "imports-top-of-file",
@@ -598,9 +611,9 @@
         "regex",
         "module-level"
       ],
-      "incorrect": "import re\n\ndef extract_version(text: str) -> str | None:\n    match = re.search(r\"v(\\d+\\.\\d+\\.\\d+)\", text)  # compiled every call\n    return match.group(1) if match else None",
+      "incorrect": "import re\n\ndef extract_version(text: str) -> str | None:\n    match = re.search(r\"v(\\d+\\.\\d+\\.\\d+)\", text)\n    return match.group(1) if match else None",
       "correct": "import re\n\n_VERSION_RE = re.compile(r\"v(\\d+\\.\\d+\\.\\d+)\")\n\ndef extract_version(text: str) -> str | None:\n    match = _VERSION_RE.search(text)\n    return match.group(1) if match else None",
-      "explanation": "`re.compile()` builds a pattern object once; `re.match()` / `re.search()` on a string call it every time. For regexes that don't change, compile at module scope. The cost of recompilation in a hot loop can dwarf the actual match."
+      "explanation": "Compile static regexes at module scope when the pattern is reused, named, or sits on a measured hot path. Python's `re` module caches recent compiled patterns from the module-level calls (`re.search`, `re.match`, etc.), so a one-shot call outside a hot path is not paying a real recompilation cost. The win from hoisting is mostly readability and naming \u2014 and, on genuinely hot paths, bypassing the cache lookup."
     },
     {
       "rule": "perf-dict-index-over-nested-loops",
@@ -743,7 +756,7 @@
     },
     {
       "rule": "simplify-extract-after-duplication",
-      "title": "Extract Helpers After 2+ Occurrences",
+      "title": "Extract Duplicated Logic Once Drift Risk Appears",
       "impact": "MEDIUM",
       "tags": [
         "simplify",
@@ -752,7 +765,7 @@
       ],
       "incorrect": "def handle_stream(stream: AsyncIterator[Chunk]) -> Response:\n    collected = []\n    async for chunk in stream:\n        if chunk.kind == \"text\":\n            collected.append(chunk.text)\n        elif chunk.kind == \"tool\":\n            collected.append(format_tool(chunk))\n    return Response(content=\"\".join(collected))\n\ndef handle_non_stream(response: RawResponse) -> Response:\n    collected = []\n    for chunk in response.chunks:\n        if chunk.kind == \"text\":\n            collected.append(chunk.text)\n        elif chunk.kind == \"tool\":\n            collected.append(format_tool(chunk))\n    return Response(content=\"\".join(collected))",
       "correct": "def _format_chunk(chunk: Chunk) -> str:\n    match chunk.kind:\n        case \"text\": return chunk.text\n        case \"tool\": return format_tool(chunk)\n        case _: return \"\"\n\nasync def handle_stream(stream: AsyncIterator[Chunk]) -> Response:\n    parts = [_format_chunk(c) async for c in stream]\n    return Response(content=\"\".join(parts))\n\ndef handle_non_stream(response: RawResponse) -> Response:\n    parts = [_format_chunk(c) for c in response.chunks]\n    return Response(content=\"\".join(parts))",
-      "explanation": "The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. The third copy-paste often happens because \"extracting is a bigger change\"; the cost is bugs where copies evolved in subtly different directions."
+      "explanation": "The first copy is fine. The second copy is the decision point: extract now, or accept drift later. A third copy is the safe default for \"rule of three,\" but if the logic encodes a domain rule (validation, formatting, permissions) that must stay consistent, extract at the second copy. The cost of delay is bugs where copies evolved in subtly different directions."
     },
     {
       "rule": "simplify-fallback-or",

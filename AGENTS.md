@@ -121,9 +121,10 @@ Sections in `_sections.md` are numbered. The numeric prefix communicates priorit
 
 These skills are written for agents first, humans second. That means:
 
-- **Impulses matter.** Every rule names the shortcut the agent is tempted to take, then names the better path.
+- **Observational, not prescriptive.** Describe the pattern and what it costs; show the fix. Leave judgment to the reader — don't moralize about what an agent "is tempted to do."
 - **Examples over prose.** Incorrect/correct pairs beat paragraphs of explanation.
 - **Short over exhaustive.** One focused rule beats a catch-all essay.
 - **Concrete over abstract.** "Use `isinstance()` over `hasattr()`" beats "prefer explicit type checks."
+- **A rule match is a signal, not a verdict.** Most rules are design preferences for new code. Check the rule's impact level before flagging in review or refactoring stable code.
 
-When adding rules, ask: *would an agent reading this recognize the mistake they just made?* If not, the rule is either too vague or the example is too generic.
+When adding rules, ask: *would a reader recognize this pattern in the diff in front of them?* If not, the rule is either too vague or the example is too generic.

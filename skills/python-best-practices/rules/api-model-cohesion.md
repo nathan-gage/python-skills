@@ -58,3 +58,5 @@ class ToolCall:
 - Fields that are computed from other fields (derive, don't store)
 
 **Why it matters:** redundancy means every mutation site has two (or more) places to update. Skipping one creates a drift bug that's only visible when the fields disagree.
+
+**Related:** `data-derive-dont-store` is the same idea at the field level — if one field is computable from another, compute it, don't store it.

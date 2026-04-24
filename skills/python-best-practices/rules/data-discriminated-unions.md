@@ -59,3 +59,5 @@ Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on
 **With Pydantic** *(applicability: pydantic)*: use `Field(discriminator="status")` and a `status: Literal[...]` tag on each variant — Pydantic will validate and narrow automatically.
 
 **Null over sentinels:** don't invent `"none"` action values. `pending_action: PendingAction | None` beats `pending_action: Literal["none", "confirm-address", "select-shipping"]`. Absence is not an action.
+
+**Related:** `data-explicit-variants` applies the same idea at the behavior level — split a mode-flag class into one class per mode. Use discriminated unions when the variants are data; use explicit variants when the variants have meaningfully different methods.

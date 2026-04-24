@@ -1,6 +1,6 @@
 # Python Best Practices
 
-**Version 1.2.0**
+**Version 1.3.0**
 Python Best Practices
 April 2026
 
@@ -14,7 +14,7 @@ April 2026
 
 ## Abstract
 
-Python software engineering guidelines for agent consumption. 69 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo.
+Python software engineering guidelines for agent consumption. 70 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo.
 
 ---
 
@@ -36,13 +36,14 @@ Python software engineering guidelines for agent consumption. 69 rules across 8 
    - 2.1 [Catch Specific Exception Types](#21-catch-specific-exception-types)
    - 2.2 [Consolidate try/except Blocks with the Same Handler](#22-consolidate-tryexcept-blocks-with-the-same-handler)
    - 2.3 [Inherit New Exceptions from Existing Base Exceptions](#23-inherit-new-exceptions-from-existing-base-exceptions)
-   - 2.4 [Trust Validated State Within the Same Trust Domain](#24-trust-validated-state-within-the-same-trust-domain)
-   - 2.5 [Use !r Format for Identifiers in Error Messages](#25-use-r-format-for-identifiers-in-error-messages)
-   - 2.6 [Use assert Only for Debug-Only Internal Invariants](#26-use-assert-only-for-debug-only-internal-invariants)
-   - 2.7 [Use assert_never for Exhaustiveness Checks](#27-use-assertnever-for-exhaustiveness-checks)
-   - 2.8 [Use raise ... from to Preserve Exception Causality](#28-use-raise-from-to-preserve-exception-causality)
-   - 2.9 [Use with / async with for Resource Lifetimes](#29-use-with-async-with-for-resource-lifetimes)
-   - 2.10 [Validate Input at System Boundaries](#210-validate-input-at-system-boundaries)
+   - 2.4 [Preserve Tracebacks When Logging Exceptions](#24-preserve-tracebacks-when-logging-exceptions)
+   - 2.5 [Trust Validated State Within the Same Trust Domain](#25-trust-validated-state-within-the-same-trust-domain)
+   - 2.6 [Use !r Format for Identifiers in Error Messages](#26-use-r-format-for-identifiers-in-error-messages)
+   - 2.7 [Use assert Only for Debug-Only Internal Invariants](#27-use-assert-only-for-debug-only-internal-invariants)
+   - 2.8 [Use assert_never for Exhaustiveness Checks](#28-use-assertnever-for-exhaustiveness-checks)
+   - 2.9 [Use raise ... from to Preserve Exception Causality](#29-use-raise-from-to-preserve-exception-causality)
+   - 2.10 [Use with / async with for Resource Lifetimes](#210-use-with-async-with-for-resource-lifetimes)
+   - 2.11 [Validate Input at System Boundaries](#211-validate-input-at-system-boundaries)
 3. [Type Safety](#3-type-safety) — **MEDIUM-HIGH**
    - 3.1 [Avoid Any Annotations](#31-avoid-any-annotations)
    - 3.2 [Fix Type Definitions Instead of cast()](#32-fix-type-definitions-instead-of-cast)
@@ -65,7 +66,7 @@ Python software engineering guidelines for agent consumption. 69 rules across 8 
    - 4.8 [Underscore Prefix for Private Names](#48-underscore-prefix-for-private-names)
    - 4.9 [Use Keyword-Only Parameters for Optional Config](#49-use-keyword-only-parameters-for-optional-config)
 5. [Code Simplification](#5-code-simplification) — **LOW-MEDIUM**
-   - 5.1 [Extract Helpers After 2+ Occurrences](#51-extract-helpers-after-2-occurrences)
+   - 5.1 [Extract Duplicated Logic Once Drift Risk Appears](#51-extract-duplicated-logic-once-drift-risk-appears)
    - 5.2 [Flatten Nested if Statements Into and Conditions](#52-flatten-nested-if-statements-into-and-conditions)
    - 5.3 [Inline Single-Use Intermediate Variables](#53-inline-single-use-intermediate-variables)
    - 5.4 [Remove Commented-Out and Dead Code](#54-remove-commented-out-and-dead-code)
@@ -207,6 +208,8 @@ class EditMessageComposer:
 ```
 
 Each class declares the fields its variant actually needs. Impossible combinations are unrepresentable. When variants genuinely share logic, extract helpers or a small base class that holds the common interface only — not a mega-class that mode-switches internally.
+
+**Related:** this rule is about splitting behavior across classes. `data-discriminated-unions` is the same idea at the data-shape level — tag the variants so consumers can narrow with `match`/`if isinstance`. Reach for either when optional fields start accumulating to encode modes.
 
 ### 1.3 Delete Dead Variants
 
@@ -541,6 +544,8 @@ Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on
 
 **Null over sentinels:** don't invent `"none"` action values. `pending_action: PendingAction | None` beats `pending_action: Literal["none", "confirm-address", "select-shipping"]`. Absence is not an action.
 
+**Related:** `data-explicit-variants` applies the same idea at the behavior level — split a mode-flag class into one class per mode. Use discriminated unions when the variants are data; use explicit variants when the variants have meaningfully different methods.
+
 ### 1.10 Use Timezone-Aware Datetimes at Boundaries
 
 **Impact: HIGH (prevents off-by-hours bugs across timezones, daylight saving, and storage)**
@@ -598,7 +603,7 @@ from typing import Final
 
 class _Unset:
     def __repr__(self) -> str:
-        return "<unset>"
+        return "UNSET"
 
 UNSET: Final = _Unset()
 
@@ -614,7 +619,9 @@ update_user("u1", nickname=None)     # nickname cleared
 update_user("u1", nickname="bob")    # nickname set to "bob"
 ```
 
-Pydantic's PATCH pattern uses the same idea — `Field(default=UNSET)` + filtering `{k: v for k, v in model_dump().items() if v is not UNSET}` gives you "omitted field" vs. "explicit null." Python 3.13+ has `typing.Sentinel("UNSET")` from PEP 661 for the boilerplate-free form. Don't use `object()` as a sentinel — a named class with `__repr__` makes tracebacks readable. And don't reach for sentinels when `None` already means "absent"; two-state `Optional` doesn't need them.
+Pydantic's PATCH pattern uses the same idea — `Field(default=UNSET)` + filtering `{k: v for k, v in model_dump().items() if v is not UNSET}` gives you "omitted field" vs. "explicit null."
+
+A private `_SENTINEL = object()` is fine for tiny internal cases — PEP 661 itself uses that idiom. Prefer a named sentinel class (as above) when the sentinel appears in signatures, reprs, logs, or tracebacks, since the `__repr__` makes debugging easier. PEP 661 proposes a standard `sentinel(...)` helper, but it is still Draft and has not shipped in the `typing` module; do not claim `typing.Sentinel` exists. And don't reach for sentinels when `None` already means "absent" — two-state `Optional` doesn't need them.
 
 ## 2. Error Handling
 
@@ -791,7 +798,46 @@ Callers can catch at whichever level of specificity they need. Adding new subtyp
 
 **Use `__init_subclass__` or explicit checks** if you need to prevent direct instantiation of the base — keep the type system as the contract enforcement.
 
-### 2.4 Trust Validated State Within the Same Trust Domain
+### 2.4 Preserve Tracebacks When Logging Exceptions
+
+**Impact: MEDIUM (keeps diagnostics intact when recovering from failures)**
+
+When you catch an exception to recover or return a fallback, keep the traceback in the log. `logger.error(str(e))` records the message but loses the stack that explains where the failure came from — which is usually the part that makes the log useful.
+
+**Incorrect (traceback discarded):**
+
+```python
+try:
+    response = client.fetch(user_id)
+except TimeoutError as e:
+    logger.error("fetch failed: %s", e)
+    return None
+```
+
+The log line records "fetch failed: timeout" with no stack — the caller sees a timeout but can't tell which code path produced it.
+
+**Correct (`logger.exception` inside the `except` block):**
+
+```python
+try:
+    response = client.fetch(user_id)
+except TimeoutError:
+    logger.exception("fetch failed for user_id=%r", user_id)
+    return None
+```
+
+`logger.exception(...)` implicitly attaches `exc_info` from the current exception, so the traceback is included at ERROR level. Outside an `except` block — for example, when logging a handled exception from a worker queue — pass `exc_info=True` (or `exc_info=e`) explicitly:
+
+```python
+logger.error("task %r failed", task_id, exc_info=exc)
+```
+
+**When not to log:**
+
+- You're re-raising (`raise` or `raise NewError(...) from e`) at the same boundary. The outer handler logs once; duplicating here produces two stacks for one failure.
+- The exception is expected and recovery is routine (e.g., cache miss). A `logger.debug` or no log at all is often right.
+
+### 2.5 Trust Validated State Within the Same Trust Domain
 
 **Impact: MEDIUM (removes clutter without losing real safety)**
 
@@ -835,7 +881,7 @@ def fulfill_order(order: ValidatedOrder) -> None:
 
 When you do trust the invariant, a single `assert order.items, "validator guarantees non-empty"` at the entry point documents the reasoning without sprinkling defensive `if` chains through the body.
 
-### 2.5 Use !r Format for Identifiers in Error Messages
+### 2.6 Use !r Format for Identifiers in Error Messages
 
 **Impact: LOW (produces consistent, unambiguous messages)**
 
@@ -874,7 +920,7 @@ raise KeyError(f"unknown key {key!r} in {registry_name!r}")
 
 **When backticks are preferable:** some codebases use Markdown-style backticks for user-facing messages (CLI output, log lines humans read). Pick one convention per project and stick to it. `!r` is usually right for Python exception messages; backticks are usually right for log strings rendered in docs or notebooks.
 
-### 2.6 Use assert Only for Debug-Only Internal Invariants
+### 2.7 Use assert Only for Debug-Only Internal Invariants
 
 **Impact: MEDIUM (`-O` strips asserts; use for debug-only invariants, not runtime contracts)**
 
@@ -909,7 +955,7 @@ def process_step(step: Step) -> Result:
 
 If the input crosses a trust boundary (user input, external API, deserialized data), always use a real exception — `AssertionError` is a poor signal at a system boundary even when it does fire. For exhaustiveness checks specifically, `typing.assert_never` is sharper than `assert False` (see `error-assert-never-exhaustiveness`). Rule of thumb: if you can't articulate why losing the check under `-O` is acceptable, it shouldn't be an `assert`.
 
-### 2.7 Use assert_never for Exhaustiveness Checks
+### 2.8 Use assert_never for Exhaustiveness Checks
 
 **Impact: MEDIUM (turns "missing variant" into a type-check error)**
 
@@ -943,7 +989,7 @@ def process_step(step: Step) -> Result:
 
 When `Step` becomes `InitStep | RunStep | DoneStep | PausedStep`, the checker reports that `step` is `PausedStep` at the `assert_never` call. Use it for closed sums: `Literal` unions, sealed dataclass hierarchies, discriminated unions, enum dispatch. On Python <3.11, import from `typing_extensions` — semantics are identical and both mypy and pyright recognize either source.
 
-### 2.8 Use raise ... from to Preserve Exception Causality
+### 2.9 Use raise ... from to Preserve Exception Causality
 
 **Impact: LOW-MEDIUM (explicit `__cause__` chain vs implicit `__context__`; often invisible to end callers)**
 
@@ -995,7 +1041,7 @@ The user-facing error is clean (`ValueError: invalid timestamp: 'abc'`) without 
 
 Default to `from original` when translating between exception types. Reach for `from None` when the internal cause is noise to the caller.
 
-### 2.9 Use with / async with for Resource Lifetimes
+### 2.10 Use with / async with for Resource Lifetimes
 
 **Impact: HIGH (deterministic cleanup even on exceptions)**
 
@@ -1033,7 +1079,7 @@ For multiple resources acquired together, `contextlib.ExitStack` closes all of t
 
 If you're writing `try` / `finally` to call `close()`, `release()`, or `disconnect()`, you almost certainly want `with` instead.
 
-### 2.10 Validate Input at System Boundaries
+### 2.11 Validate Input at System Boundaries
 
 **Impact: MEDIUM (fails fast and prevents bad data from spreading)**
 
@@ -1774,6 +1820,8 @@ class ToolCall:
 
 **Why it matters:** redundancy means every mutation site has two (or more) places to update. Skipping one creates a drift bug that's only visible when the fields disagree.
 
+**Related:** `data-derive-dont-store` is the same idea at the field level — if one field is computable from another, compute it, don't store it.
+
 ### 4.5 Keep Old Names as Deprecated Aliases
 
 **Impact: MEDIUM (enables gradual migration without breakage)**
@@ -2008,11 +2056,11 @@ Callers must pass `timeout=`, `retries=`, etc. by name.
 
 Python idioms. Comprehensions, `any()`/`all()`, early returns. Mostly stylistic — apply when writing or reviewing.
 
-### 5.1 Extract Helpers After 2+ Occurrences
+### 5.1 Extract Duplicated Logic Once Drift Risk Appears
 
 **Impact: MEDIUM (prevents divergent implementations of the same logic)**
 
-The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. The third copy-paste often happens because "extracting is a bigger change"; the cost is bugs where copies evolved in subtly different directions.
+The first copy is fine. The second copy is the decision point: extract now, or accept drift later. A third copy is the safe default for "rule of three," but if the logic encodes a domain rule (validation, formatting, permissions) that must stay consistent, extract at the second copy. The cost of delay is bugs where copies evolved in subtly different directions.
 
 **Incorrect (same logic duplicated across handlers):**
 
@@ -2063,8 +2111,6 @@ Now a new chunk kind means one change. The two handlers can't drift apart.
 - The two occurrences look similar but serve genuinely different purposes — premature abstraction locks them together
 - The shared logic is 2-3 trivial lines and naming a helper is more noise than value
 - Each caller would need the helper to accept so many optional parameters that it becomes a mode-switch
-
-**Heuristic: "rule of three" is a safe default, but lean toward earlier extraction** when the logic encodes a domain rule (validation, formatting, permissions) that must stay consistent.
 
 **Location of the helper:**
 
@@ -2535,27 +2581,27 @@ total = sum(i.price for i in items if i.on_sale)
 
 Same for `min`, `max`, `any`, `all`, `''.join(...)`.
 
-**For complex multi-step transforms, consider `itertools.chain` or the `toolz` library** — but most of the time, one comprehension is the answer.
+For multi-step transforms, `itertools` provides streaming building blocks (`chain`, `islice`, `groupby`). Most of the time, one comprehension is enough.
 
 ### 6.3 Compile Static Regex Patterns at Module Level
 
 **Impact: LOW (marginal outside tight loops; Python's re cache handles most cases)**
 
-`re.compile()` builds a pattern object once; `re.match()` / `re.search()` on a string call it every time. For regexes that don't change, compile at module scope. The cost of recompilation in a hot loop can dwarf the actual match.
+Compile static regexes at module scope when the pattern is reused, named, or sits on a measured hot path. Python's `re` module caches recent compiled patterns from the module-level calls (`re.search`, `re.match`, etc.), so a one-shot call outside a hot path is not paying a real recompilation cost. The win from hoisting is mostly readability and naming — and, on genuinely hot paths, bypassing the cache lookup.
 
-**Incorrect (recompiled on every call):**
+**Incorrect (reused pattern buried inline, no name):**
 
 ```python
 import re
 
 def extract_version(text: str) -> str | None:
-    match = re.search(r"v(\d+\.\d+\.\d+)", text)  # compiled every call
+    match = re.search(r"v(\d+\.\d+\.\d+)", text)
     return match.group(1) if match else None
 ```
 
-`re.search` caches recent patterns internally, but for any pattern complex enough to matter, you're paying compilation cost on every invocation.
+The pattern is a named concept (`VERSION_RE`) shared across the module but inlined anonymously. If a second function needs the same regex, it gets copied.
 
-**Correct (compiled once at import):**
+**Correct (compiled once at module scope with a descriptive name):**
 
 ```python
 import re
@@ -2567,22 +2613,19 @@ def extract_version(text: str) -> str | None:
     return match.group(1) if match else None
 ```
 
-The pattern is built once when the module imports; every call just uses it.
+The name documents intent, other call sites reuse the same object, and a tight loop avoids the internal cache lookup.
 
 **Naming:**
 
 - `_UPPER_CASE` for module-level private regex constants (or whatever your project's constant convention is)
 - Descriptive names — `_VERSION_RE`, `_EMAIL_RE`, not `_PATTERN1`
 
-**When compilation isn't worth hoisting:**
+**Don't hoist when:**
 
-- The pattern is built from a runtime value (different per call)
-- The function is called a small number of times total
-- The pattern is truly one-shot (startup-only parsing)
+- The pattern depends on a runtime value (different per call)
+- The regex is one-shot startup parsing and an inline call reads more clearly
 
-Even for the truly-one-shot case, a module-level constant is usually clearer than an inline string — so the performance argument isn't the only reason to hoist.
-
-**Related:** same pattern applies to other "build once, use many" objects — `TypeAdapter`, `json.JSONDecoder` with custom hooks, precompiled templates. Build at module scope; use at call time.
+**Related:** the same "build once, use many" instinct applies to other reusable objects — `TypeAdapter`, `json.JSONDecoder` with custom hooks, precompiled templates.
 
 ### 6.4 Define TypeAdapter Instances at Module Level
 
@@ -3312,28 +3355,24 @@ def compact(data: dict[str, Any]) -> str:
 
 **Impact: LOW (reduces namespace pollution and clarifies intent)**
 
-When a helper function or constant is only used in one function or class, define it there — not at module level "just in case" someone else needs it later. Module-level scope is a commitment to every future reader: "this is part of the module's surface."
+Scope tiny helpers and one-off constants near their only use. Promote a helper to module scope when it is substantial, reused, independently testable, expensive to rebuild, or part of the module's contract. Nested functions are cheap inside a small callable, but stacking nontrivial logic inside another function hurts readability and makes the helper harder to test directly.
 
-**Incorrect (module-level helper used only inside one function):**
+**Incorrect (tiny one-off constant hoisted into the module namespace):**
 
 ```python
 # somewhere in a 500-line module
-def _normalize_whitespace(text: str) -> str:
-    return " ".join(text.split())
-
-def _DEFAULT_MAX_LENGTH() -> int:
-    return 280
+_DEFAULT_MAX_LENGTH = 280
 
 def summarize(text: str) -> str:
-    text = _normalize_whitespace(text)
-    return text[: _DEFAULT_MAX_LENGTH()]
+    normalized = " ".join(text.split())
+    return normalized[:_DEFAULT_MAX_LENGTH]
 
-# ... 400 more lines, no other use of _normalize_whitespace or _DEFAULT_MAX_LENGTH
+# ... 400 more lines, no other use of _DEFAULT_MAX_LENGTH
 ```
 
-`_normalize_whitespace` lives in the module namespace forever, visible to everything else in the file. A future reader sees it and wonders if it's meant to be used elsewhere. If not, why is it out here?
+A future reader sees `_DEFAULT_MAX_LENGTH` at module scope and assumes it's shared. If it isn't, that's noise.
 
-**Correct (scope to the function that uses it):**
+**Correct (trivial constant local to its one caller):**
 
 ```python
 def summarize(text: str) -> str:
@@ -3342,31 +3381,17 @@ def summarize(text: str) -> str:
     return normalized[:DEFAULT_MAX_LENGTH]
 ```
 
-Or, if the helper has enough logic to want a name:
+**When to promote to module scope:**
 
-```python
-def summarize(text: str) -> str:
-    def _normalize(s: str) -> str:
-        return " ".join(s.split())
+- Reused by more than one function
+- Substantial enough to want its own unit tests
+- Expensive to rebuild per call (compiled regex, `TypeAdapter`, precomputed table)
+- Part of the module's contract (constants referenced by name, e.g., `MyClass.DEFAULT_TIMEOUT`)
+- Needs to be patched in tests (module-level constants are easy to monkeypatch)
 
-    return _normalize(text)[:280]
-```
+Prefer module-level over a nested `def` whenever the helper has real logic. Nested functions are appropriate for short closures or very small transforms; they stop being appropriate once the helper grows past a few lines.
 
-**When module-level is the right scope:**
-
-- Used by multiple functions within the module
-- Genuinely part of the module's API surface
-- A constant that needs to be patched in tests (module-level constants are easy to monkeypatch)
-- A pattern that would be expensive to rebuild per call (compiled regex, module constant, `TypeAdapter`)
-
-**When class-level is right:**
-
-- Used by multiple methods on the same class
-- Part of the class's contract (constants referenced by name, e.g., `MyClass.DEFAULT_TIMEOUT`)
-
-**The rule, reversed:** ask "does this helper need to be at this scope?" If a narrower scope works, use it.
-
-**Imports follow the same principle** (see `imports-top-of-file`): default to top-of-module because imports-at-function-scope is the narrower version of the same instinct. Imports are the exception; helpers and constants are not.
+**Imports follow the opposite default** (see `imports-top-of-file`): imports live at the top of the module unless there's a specific reason (optional deps, circular, expensive-to-import) to defer them.
 
 
 ## References

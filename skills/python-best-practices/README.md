@@ -22,18 +22,18 @@ python-best-practices/
 
 ## Sections
 
-| # | Section | Prefix |
-|---|---|---|
-| 1 | Data Modeling | `data-` |
-| 2 | Type Safety | `types-` |
-| 3 | API Design | `api-` |
-| 4 | Error Handling | `error-` |
-| 5 | Code Simplification | `simplify-` |
-| 6 | Performance | `perf-` |
-| 7 | Naming | `naming-` |
-| 8 | Imports & Structure | `imports-` |
+| # | Section | Typical Impact | Prefix |
+|---|---|---|---|
+| 1 | Data Modeling | HIGH | `data-` |
+| 2 | Error Handling | MEDIUM-HIGH | `error-` |
+| 3 | Type Safety | MEDIUM-HIGH | `types-` |
+| 4 | API Design | MEDIUM | `api-` |
+| 5 | Code Simplification | LOW-MEDIUM | `simplify-` |
+| 6 | Performance | LOW-MEDIUM | `perf-` |
+| 7 | Naming | LOW-MEDIUM | `naming-` |
+| 8 | Imports & Structure | LOW | `imports-` |
 
-Impact and applicability live on the individual rule, not the section.
+Section impact is the typical case; individual rules range one level above or below — always check the rule frontmatter. Applicability (e.g., Pydantic-only) is tagged on the rule, not the section.
 
 ## Impact Levels
 

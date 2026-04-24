@@ -57,4 +57,4 @@ total = sum(i.price for i in items if i.on_sale)
 
 Same for `min`, `max`, `any`, `all`, `''.join(...)`.
 
-**For complex multi-step transforms, consider `itertools.chain` or the `toolz` library** — but most of the time, one comprehension is the answer.
+For multi-step transforms, `itertools` provides streaming building blocks (`chain`, `islice`, `groupby`). Most of the time, one comprehension is enough.

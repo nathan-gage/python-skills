@@ -64,3 +64,5 @@ class EditMessageComposer:
 ```
 
 Each class declares the fields its variant actually needs. Impossible combinations are unrepresentable. When variants genuinely share logic, extract helpers or a small base class that holds the common interface only — not a mega-class that mode-switches internally.
+
+**Related:** this rule is about splitting behavior across classes. `data-discriminated-unions` is the same idea at the data-shape level — tag the variants so consumers can narrow with `match`/`if isinstance`. Reach for either when optional fields start accumulating to encode modes.

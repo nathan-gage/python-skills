@@ -4,13 +4,13 @@ description: Python software engineering guidelines from real PR review patterns
 license: MIT
 metadata:
   author: python-best-practices
-  version: "1.2.0"
+  version: "1.3.0"
   pythonVersion: ">=3.11"
 ---
 
 # Python Best Practices
 
-Guidelines for writing and reviewing Python. 69 rules across 8 categories, prioritized by impact.
+Guidelines for writing and reviewing Python. 70 rules across 8 categories, prioritized by impact.
 
 A rule match is a signal, not a verdict. Most rules are design preferences for new code, not bugs to fix across the repo — check the rule's impact level before flagging in review or refactoring stable code.
 
@@ -82,6 +82,7 @@ Section impact is a typical-case label; individual rules range one level above o
 - `error-assert-never-exhaustiveness` — `typing.assert_never` for exhaustiveness
 - `error-raise-from-for-chains` — `raise NewErr(...) from original` to preserve causality
 - `error-inherit-base-exceptions` — New exceptions inherit existing bases for compatibility
+- `error-log-exception-context` — `logger.exception(...)` inside `except`; keep the traceback in the log
 - `error-repr-in-messages` — `f"tool {name!r}"` for identifiers in error text
 
 ### Type Safety (`types-`)
@@ -112,7 +113,7 @@ Section impact is a typical-case label; individual rules range one level above o
 ### Code Simplification (`simplify-`)
 
 - `simplify-early-return` — Return early; don't nest the happy path
-- `simplify-extract-after-duplication` — Extract once a pattern repeats 3×
+- `simplify-extract-after-duplication` — Second copy is the decision point; third is the safe default
 - `simplify-cached-property` — `@cached_property` on immutable instances; not thread-safe
 - `simplify-comprehensions` — Comprehensions over `for` + `.append()`
 - `simplify-any-all-builtins` — `any()` / `all()` over manual flag + `break`

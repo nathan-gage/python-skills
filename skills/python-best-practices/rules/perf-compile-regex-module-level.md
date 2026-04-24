@@ -8,21 +8,21 @@ references: https://docs.python.org/3/library/re.html#re.compile
 
 ## Compile Static Regex Patterns at Module Level
 
-`re.compile()` builds a pattern object once; `re.match()` / `re.search()` on a string call it every time. For regexes that don't change, compile at module scope. The cost of recompilation in a hot loop can dwarf the actual match.
+Compile static regexes at module scope when the pattern is reused, named, or sits on a measured hot path. Python's `re` module caches recent compiled patterns from the module-level calls (`re.search`, `re.match`, etc.), so a one-shot call outside a hot path is not paying a real recompilation cost. The win from hoisting is mostly readability and naming — and, on genuinely hot paths, bypassing the cache lookup.
 
-**Incorrect (recompiled on every call):**
+**Incorrect (reused pattern buried inline, no name):**
 
 ```python
 import re
 
 def extract_version(text: str) -> str | None:
-    match = re.search(r"v(\d+\.\d+\.\d+)", text)  # compiled every call
+    match = re.search(r"v(\d+\.\d+\.\d+)", text)
     return match.group(1) if match else None
 ```
 
-`re.search` caches recent patterns internally, but for any pattern complex enough to matter, you're paying compilation cost on every invocation.
+The pattern is a named concept (`VERSION_RE`) shared across the module but inlined anonymously. If a second function needs the same regex, it gets copied.
 
-**Correct (compiled once at import):**
+**Correct (compiled once at module scope with a descriptive name):**
 
 ```python
 import re
@@ -34,19 +34,16 @@ def extract_version(text: str) -> str | None:
     return match.group(1) if match else None
 ```
 
-The pattern is built once when the module imports; every call just uses it.
+The name documents intent, other call sites reuse the same object, and a tight loop avoids the internal cache lookup.
 
 **Naming:**
 
 - `_UPPER_CASE` for module-level private regex constants (or whatever your project's constant convention is)
 - Descriptive names — `_VERSION_RE`, `_EMAIL_RE`, not `_PATTERN1`
 
-**When compilation isn't worth hoisting:**
+**Don't hoist when:**
 
-- The pattern is built from a runtime value (different per call)
-- The function is called a small number of times total
-- The pattern is truly one-shot (startup-only parsing)
+- The pattern depends on a runtime value (different per call)
+- The regex is one-shot startup parsing and an inline call reads more clearly
 
-Even for the truly-one-shot case, a module-level constant is usually clearer than an inline string — so the performance argument isn't the only reason to hoist.
-
-**Related:** same pattern applies to other "build once, use many" objects — `TypeAdapter`, `json.JSONDecoder` with custom hooks, precompiled templates. Build at module scope; use at call time.
+**Related:** the same "build once, use many" instinct applies to other reusable objects — `TypeAdapter`, `json.JSONDecoder` with custom hooks, precompiled templates.

@@ -1,13 +1,13 @@
 ---
-title: Extract Helpers After 2+ Occurrences
+title: Extract Duplicated Logic Once Drift Risk Appears
 impact: MEDIUM
 impactDescription: prevents divergent implementations of the same logic
 tags: simplify, extraction, dry
 ---
 
-## Extract Helpers After 2+ Occurrences
+## Extract Duplicated Logic Once Drift Risk Appears
 
-The first copy of a piece of logic is fine. The second copy is the point of decision: extract now, or accept drift later. The third copy-paste often happens because "extracting is a bigger change"; the cost is bugs where copies evolved in subtly different directions.
+The first copy is fine. The second copy is the decision point: extract now, or accept drift later. A third copy is the safe default for "rule of three," but if the logic encodes a domain rule (validation, formatting, permissions) that must stay consistent, extract at the second copy. The cost of delay is bugs where copies evolved in subtly different directions.
 
 **Incorrect (same logic duplicated across handlers):**
 
@@ -58,8 +58,6 @@ Now a new chunk kind means one change. The two handlers can't drift apart.
 - The two occurrences look similar but serve genuinely different purposes — premature abstraction locks them together
 - The shared logic is 2-3 trivial lines and naming a helper is more noise than value
 - Each caller would need the helper to accept so many optional parameters that it becomes a mode-switch
-
-**Heuristic: "rule of three" is a safe default, but lean toward earlier extraction** when the logic encodes a domain rule (validation, formatting, permissions) that must stay consistent.
 
 **Location of the helper:**
 

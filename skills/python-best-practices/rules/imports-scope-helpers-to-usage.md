@@ -8,28 +8,24 @@ references: https://peps.python.org/pep-0008/#imports
 
 ## Scope Helpers and Constants to Their Usage Site
 
-When a helper function or constant is only used in one function or class, define it there — not at module level "just in case" someone else needs it later. Module-level scope is a commitment to every future reader: "this is part of the module's surface."
+Scope tiny helpers and one-off constants near their only use. Promote a helper to module scope when it is substantial, reused, independently testable, expensive to rebuild, or part of the module's contract. Nested functions are cheap inside a small callable, but stacking nontrivial logic inside another function hurts readability and makes the helper harder to test directly.
 
-**Incorrect (module-level helper used only inside one function):**
+**Incorrect (tiny one-off constant hoisted into the module namespace):**
 
 ```python
 # somewhere in a 500-line module
-def _normalize_whitespace(text: str) -> str:
-    return " ".join(text.split())
-
-def _DEFAULT_MAX_LENGTH() -> int:
-    return 280
+_DEFAULT_MAX_LENGTH = 280
 
 def summarize(text: str) -> str:
-    text = _normalize_whitespace(text)
-    return text[: _DEFAULT_MAX_LENGTH()]
+    normalized = " ".join(text.split())
+    return normalized[:_DEFAULT_MAX_LENGTH]
 
-# ... 400 more lines, no other use of _normalize_whitespace or _DEFAULT_MAX_LENGTH
+# ... 400 more lines, no other use of _DEFAULT_MAX_LENGTH
 ```
 
-`_normalize_whitespace` lives in the module namespace forever, visible to everything else in the file. A future reader sees it and wonders if it's meant to be used elsewhere. If not, why is it out here?
+A future reader sees `_DEFAULT_MAX_LENGTH` at module scope and assumes it's shared. If it isn't, that's noise.
 
-**Correct (scope to the function that uses it):**
+**Correct (trivial constant local to its one caller):**
 
 ```python
 def summarize(text: str) -> str:
@@ -38,28 +34,14 @@ def summarize(text: str) -> str:
     return normalized[:DEFAULT_MAX_LENGTH]
 ```
 
-Or, if the helper has enough logic to want a name:
+**When to promote to module scope:**
 
-```python
-def summarize(text: str) -> str:
-    def _normalize(s: str) -> str:
-        return " ".join(s.split())
+- Reused by more than one function
+- Substantial enough to want its own unit tests
+- Expensive to rebuild per call (compiled regex, `TypeAdapter`, precomputed table)
+- Part of the module's contract (constants referenced by name, e.g., `MyClass.DEFAULT_TIMEOUT`)
+- Needs to be patched in tests (module-level constants are easy to monkeypatch)
 
-    return _normalize(text)[:280]
-```
+Prefer module-level over a nested `def` whenever the helper has real logic. Nested functions are appropriate for short closures or very small transforms; they stop being appropriate once the helper grows past a few lines.
 
-**When module-level is the right scope:**
-
-- Used by multiple functions within the module
-- Genuinely part of the module's API surface
-- A constant that needs to be patched in tests (module-level constants are easy to monkeypatch)
-- A pattern that would be expensive to rebuild per call (compiled regex, module constant, `TypeAdapter`)
-
-**When class-level is right:**
-
-- Used by multiple methods on the same class
-- Part of the class's contract (constants referenced by name, e.g., `MyClass.DEFAULT_TIMEOUT`)
-
-**The rule, reversed:** ask "does this helper need to be at this scope?" If a narrower scope works, use it.
-
-**Imports follow the same principle** (see `imports-top-of-file`): default to top-of-module because imports-at-function-scope is the narrower version of the same instinct. Imports are the exception; helpers and constants are not.
+**Imports follow the opposite default** (see `imports-top-of-file`): imports live at the top of the module unless there's a specific reason (optional deps, circular, expensive-to-import) to defer them.

@@ -1237,9 +1237,11 @@ One validation point. Internal code takes `OrderId` (a branded `NewType`) and tr
 - Message queue consumers
 - Foreign API responses
 
-**Scope:** Data at a boundary is untrusted. Validate it into a typed model (Pydantic, dataclass with a validator, `NewType` + explicit check). Once validated, the typed model flows through internal code unchecked.
+**Heuristic:** data at a boundary is untrusted. Validate it into a typed model (Pydantic, dataclass with a validator, `NewType` + explicit check). Once validated, the typed model flows through internal code unchecked.
 
 **Fail fast:** validate before expensive operations. Don't read a 10MB file, parse it, and *then* reject it for missing a required field — check the field first.
+
+**When layered validation is deliberate:** database constraints, domain-object constructors, and security-sensitive operations may enforce invariants again by design — defense in depth at a real trust or representation transition is not the redundancy this rule targets. The target is reflexive re-checking of already-validated values *inside* one trust domain.
 
 ## 3. Type Safety
 
@@ -2191,9 +2193,11 @@ class Cache:
     def _entries(self) -> dict[str, object]: ...       # internal state access
 ```
 
-**Don't reach into `_private` from outside.** If you find yourself writing `obj._internal`, either (a) the attribute should be public and the owner should know, or (b) the design has a gap — add a public method instead. Reaching into `_private` couples you to implementation details that may change.
+Reaching into `_private` from outside is the sibling failure — couples you to details free to change; see `api-no-private-access`. If you find yourself writing `obj._internal`, either the attribute should be public and the owner should know, or the design has a gap — add a public method instead.
 
 **`__all__` is the contract:** `from mymodule import *` respects `__all__`. Tools like Sphinx and type checkers also use it to determine the public surface. Keep it minimal and accurate.
+
+**When not to underscore:** names that external machinery reaches *by string* — plugin entry points, `getattr`-dispatched handlers, ORM and serializer field names — are public contracts regardless of intent, and underscoring them breaks the dispatch. The convention earns its keep where the public/internal boundary carries compatibility weight (libraries, shared packages); in a leaf application module with one consumer, exhaustive underscoring is ceremony.
 
 ### 4.9 Use Keyword-Only Parameters for Optional Config
 

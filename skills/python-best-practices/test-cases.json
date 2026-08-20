@@ -150,7 +150,7 @@
       "correct": "# mymodule.py\ndef format_date(d):\n    return _to_iso_string(d)\n\ndef _to_iso_string(d):\n    return d.isoformat()\n\n__all__ = [\"format_date\"]",
       "explanation": "Names that start with `_` are internal. Names that don't are public \u2014 and public means \"backward-compatible forever unless deprecated.\" Without language-level enforcement, implementation details often stay public; underscore them on the way in, not after they've leaked.",
       "counter_signals": [
-        "**Don't reach into `_private` from outside.** If you find yourself writing `obj._internal`, either (a) the attribute should be public and the owner should know, or (b) the design has a gap \u2014 add a public method instead. Reaching into `_private` couples you to implementation details that may change."
+        "**When not to underscore:** names that external machinery reaches *by string* \u2014 plugin entry points, `getattr`-dispatched handlers, ORM and serializer field names \u2014 are public contracts regardless of intent, and underscoring them breaks the dispatch. The convention earns its keep where the public/internal boundary carries compatibility weight (libraries, shared packages); in a leaf application module with one consumer, exhaustive underscoring is ceremony."
       ]
     },
     {
@@ -558,7 +558,7 @@
       "correct": "# boundary: the API handler\ndef handle_fulfill_request(req: Request) -> Response:\n    try:\n        body = FulfillRequest.model_validate(req.json())  # Pydantic does the work\n    except ValidationError as e:\n        return error_response(400, str(e))\n\n    process_order(body.order_id)\n    return success_response()\n\n# internal: takes a validated value, trusts it\ndef process_order(order_id: OrderId) -> None:\n    order = load_order(order_id)\n    fulfill(order)",
       "explanation": "Validate once, at the edge \u2014 not repeatedly in every internal function. Sprinkling defensive checks throughout the call chain \"in case something got through\" bloats internals without catching anything a boundary check didn't. Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value.",
       "counter_signals": [
-        "**Scope:** Data at a boundary is untrusted. Validate it into a typed model (Pydantic, dataclass with a validator, `NewType` + explicit check). Once validated, the typed model flows through internal code unchecked."
+        "**When layered validation is deliberate:** database constraints, domain-object constructors, and security-sensitive operations may enforce invariants again by design \u2014 defense in depth at a real trust or representation transition is not the redundancy this rule targets. The target is reflexive re-checking of already-validated values *inside* one trust domain."
       ]
     },
     {

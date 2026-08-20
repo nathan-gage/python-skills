@@ -401,7 +401,7 @@ class Config(BaseModel):
     tags: list[str] = Field(default_factory=list)
 ```
 
-**Scope — same syntax, three behaviors:** a plain `def` shares the single default object — the bug this rule exists for. `@dataclass` *rejects* bare mutable defaults with `ValueError`, steering you to `default_factory`. Pydantic v2 is not the same trap: it deep-copies unhashable mutable defaults per instance, so `tags: list[str] = []` on a model works — `Field(default_factory=list)` stays preferable for clarity, for hashable mutable defaults, and for validated defaults, but it isn't a correctness fix there; don't flag model defaults as the function-argument bug. Safe to use directly as defaults anywhere: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. Transitive immutability, not surface type, is the property that matters.
+**Scope — same syntax, three behaviors:** a plain `def` shares the single default object — the bug this rule exists for. `@dataclass` *rejects* bare mutable defaults with `ValueError`, steering you to `default_factory`. Pydantic v2 is not the same trap: it deep-copies unhashable mutable defaults per instance, so `tags: list[str] = []` on a model works — `Field(default_factory=list)` stays preferable for clarity and for hashable mutable defaults, and `Field(default_factory=list, validate_default=True)` when the generated default itself must be validated (default validation is opt-in, separate from the factory) — but none of that is a correctness fix there; don't flag model defaults as the function-argument bug. Safe to use directly as defaults anywhere: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. Transitive immutability, not surface type, is the property that matters.
 
 ### 1.7 Phase Related Optional Fields Into Nested Structs
 
@@ -1917,7 +1917,7 @@ class User:
 
 Use `@classmethod` for alternative constructors (`Event.from_json(raw)`); the method needs the class for subclass-friendly construction but not an instance. Use a `Protocol` when several unrelated types need to provide the same interface without a shared base.
 
-**Keep stateless helpers at module scope:** `@staticmethod` is the rarest tier — if there's no `self` and no `cls`, a module function is usually cleaner. Starting too coupled (everything on a class) is harder to undo than starting too loose (a free function you later move).
+**When module scope is right:** `@staticmethod` is the rarest tier — if there's no `self` and no `cls`, a module function is usually cleaner. Starting too coupled (everything on a class) is harder to undo than starting too loose (a free function you later move).
 
 ### 4.3 Don't Access Private Attributes
 

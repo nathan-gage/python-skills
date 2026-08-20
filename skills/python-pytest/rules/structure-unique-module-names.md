@@ -8,22 +8,28 @@ references: https://docs.pytest.org/en/stable/explanation/pythonpath.html, https
 
 ## Keep Test Module Import Identities Collision-Free
 
-Under pytest's default `prepend` import mode, a test module in a non-package directory imports under its bare filename: `service/tests/test_utils.py` and `scripts/tests/test_utils.py` both claim the import name `test_utils`. Collect either tree alone and it passes; collect both in one invocation and pytest raises `ImportPathMismatchError` (or one module shadows the other). The failure appears exactly when suites compose — the combined CI run breaks while every per-project run stays green.
+Under pytest's default `prepend` import mode, a test module's import identity is derived by walking up from the file through consecutive `__init__.py` directories: a module in a non-package directory imports under its bare filename, and a `tests/` package whose *parent* is not a package imports as `tests.<module>`. Two trees can therefore claim the same identity — `service/tests/test_utils.py` and `scripts/tests/test_utils.py` collide as `test_utils` (no packages) *and still collide* as `tests.test_utils` if only the `tests/` directories carry `__init__.py`. Either tree passes alone; collecting both in one invocation raises `ImportPathMismatchError`. The failure appears exactly when suites compose.
 
-**Incorrect (two non-package trees claim one import identity):**
-
-```
-service/tests/test_utils.py      # imports as "test_utils"
-scripts/tests/test_utils.py      # also "test_utils" → ImportPathMismatchError when both collect
-```
-
-**Correct (unique identities — packaged trees, or unique filenames):**
+**Incorrect (same identity — with or without a lone `tests/__init__.py`):**
 
 ```
-service/tests/__init__.py        # modules import as "service.tests.*"
+service/tests/test_utils.py      # "test_utils"        — collides with:
+scripts/tests/test_utils.py      # "test_utils"
+# adding only service/tests/__init__.py and scripts/tests/__init__.py
+# renames both to "tests.test_utils" — still one identity, still colliding
+```
+
+**Correct (globally-unique filenames — simplest; or importlib mode):**
+
+```
 service/tests/test_service_utils.py
-scripts/tests/__init__.py        # distinct package: "scripts.tests.*"
 scripts/tests/test_script_utils.py
 ```
 
-Three ways out, pick one per repository: add `__init__.py` so test trees are packages with distinct package-qualified names; keep flat un-packaged trees but give test modules globally-unique filenames; or set `--import-mode=importlib`, which pytest recommends for new projects and which removes the uniqueness requirement altogether. Per-directory `conftest.py` files are unaffected — many conftests with the same filename are normal, supported pytest design. Naming test modules after what they test (`test_billing_rounding.py`, not a third `test_utils.py`) sidesteps the collision and reads better in failure output anyway.
+```toml
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"   # pytest's recommendation for new projects;
+                                      # removes the uniqueness requirement entirely
+```
+
+Three ways out, pick one per repository: globally-unique test module filenames (naming modules after what they test — `test_billing_rounding.py`, not a third `test_utils.py` — does this as a side effect and reads better in failure output); `--import-mode=importlib`, recommended for new projects, with the caveat that test modules then can't import *each other* by bare name; or full package chains — `__init__.py` from a uniquely-named root all the way down (`service/__init__.py` + `service/tests/__init__.py` → `service.tests.test_utils`), not just in the `tests/` directory. Per-directory `conftest.py` files with the same filename are normal, supported pytest design and are not what collides here.

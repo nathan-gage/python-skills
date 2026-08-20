@@ -77,3 +77,24 @@ def test_same_named_test_modules_collide_under_prepend(pytester: pytest.Pytester
         "-p", "no:cacheprovider", "--import-mode=importlib"
     )
     importlib_mode.assert_outcomes(passed=2)
+
+
+def test_tests_package_init_alone_does_not_disambiguate(pytester: pytest.Pytester):
+    """structure-unique-module-names: "a `tests/` package whose parent is not a package imports as
+    tests.<module> ... adding only service/tests/__init__.py and scripts/tests/__init__.py renames
+    both to tests.test_utils — still one identity, still colliding."
+    """
+    for parent in ("service", "scripts"):
+        tree = pytester.path / parent / "tests"
+        tree.mkdir(parents=True)
+        (tree / "__init__.py").write_text("")
+        (tree / "test_utils.py").write_text(f"def test_{parent}(): pass\n")
+
+    collided = pytester.runpytest_inprocess("-p", "no:cacheprovider")
+    assert collided.ret != 0
+    collided.stdout.fnmatch_lines(["*import file mismatch*"])
+
+    importlib_mode = pytester.runpytest_inprocess(
+        "-p", "no:cacheprovider", "--import-mode=importlib"
+    )
+    importlib_mode.assert_outcomes(passed=2)

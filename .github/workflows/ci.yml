@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  skills:
+    name: validate and rebuild skills
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Validate, rebuild, and check generated outputs are committed
+        run: |
+          set -eu
+          for skill in skills/*/; do
+            echo "== $skill =="
+            (cd "$skill" && uv run src/validate.py && uv run src/build.py && uv run src/extract_tests.py)
+          done
+          git diff --exit-code -- skills/
+
+  proofs:
+    name: claim proofs (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: make -C proofs ${{ matrix.python }}

@@ -397,7 +397,7 @@ class Config(BaseModel):
     tags: list[str] = Field(default_factory=list)
 ```
 
-`@dataclass` rejects bare mutable defaults with `ValueError`. Pydantic v2 happens to deep-copy the default for each instance, but `Field(default_factory=list)` makes the intent explicit and survives version changes. Safe to use directly as defaults: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — anything that can't be mutated.
+`@dataclass` rejects bare mutable defaults with `ValueError`. Pydantic v2 happens to deep-copy the default for each instance, but `Field(default_factory=list)` makes the intent explicit and survives version changes. Safe to use directly as defaults: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. The property that matters is transitive immutability, not the surface type.
 
 ### 1.7 Phase Related Optional Fields Into Nested Structs
 
@@ -490,6 +490,8 @@ def with_pending_action(state: AppState, action: str) -> AppState:
 **Naming conventions:**
 - `apply_*`, `set_*`, `update_*_inplace` — mutate, return `None`
 - `with_*`, `update_*`, `derive_*` — return a new value, leave input alone
+
+Mutation APIs that return *new information* are fine — `dict.pop` returns the removed value, `setdefault` returns the present one; the returned value carries something the caller didn't have. The trap this rule targets is returning the *mutated object itself*, which is what invites the two wrong mental models. Ambiguity, not the mere existence of a return value, is the problem.
 
 The contract should be obvious from the name and signature without reading the body.
 
@@ -613,6 +615,8 @@ display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # named zone, DST 
 **Parsing input:** if callers can send naive datetimes, decide once whether to reject or assume a fixed zone. Never *silently* treat naive as UTC. For Pydantic v2, `AwareDatetime` rejects naive values at the model boundary. For PostgreSQL, use `TIMESTAMPTZ`; for SQLite/MySQL, store ISO-8601 strings with `+00:00` or epoch milliseconds.
 
 Naive is acceptable only inside a tight block where every value is naive and the timezone is documented in scope, or for pure date arithmetic (use `date`, not `datetime`). If the value outlives the function it's created in, it should be aware.
+
+This rule is about *instants*. Civil concepts need a different shape: all-day values are a `date`; recurring local schedules and future events pinned to a wall clock are a local time plus a named zone, where converting to UTC too early destroys the DST-following semantics the domain actually wants. Ask what the value represents before normalizing it.
 
 ### 1.12 Use a Sentinel Object When None Is a Real Domain Value
 
@@ -785,11 +789,14 @@ def load_config(path: Path) -> Config | None:
 
 One block, one handler, one place to change. The caller sees the same behavior; the implementation is simpler.
 
+**Watch the scope you merge:** a single block makes every listed exception recoverable across *every* operation inside it. If a helper deep in one stage unexpectedly raises an exception type meant for a different stage, the merged handler converts a genuine defect into "config load failed." Merge only operations whose failures share one meaning and one recovery; when stages need distinct diagnostics but share the *policy*, deduplicate the handler body instead of widening the protected region — a small `_config_warning(path, stage, error)` helper called from three narrow blocks keeps stage attribution without three divergent handlers.
+
 **When to keep blocks separate:**
 
 - Different exceptions need **different** handling (log-and-return vs. retry vs. re-raise)
 - Intermediate values matter for the handler (you want the partial result when the second step fails)
 - The blocks are far apart in the function (folding them together would nest too much)
+- A listed exception type could plausibly escape a *different* stage than intended (broad types like `ValueError` or `OSError`) — merging misattributes it
 
 **Use `contextlib.suppress` for trivial "ignore the error" cases:**
 
@@ -908,14 +915,14 @@ logger.error("task %r failed", task_id, exc_info=exc)
 
 **Impact: MEDIUM (removes clutter without losing real safety)**
 
-Once a value has been validated *and the validated object is immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation.
+Once a value has been validated *and the validated object is transitively immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation.
 
 **Incorrect (re-checking validated immutable state in the same module):**
 
 ```python
 class ValidatedOrder(BaseModel):
     model_config = {"frozen": True}
-    items: list[Item]
+    items: tuple[Item, ...]   # transitively frozen — frozen=True alone only stops field reassignment
     total: int
 
     @model_validator(mode="after")
@@ -944,7 +951,7 @@ def fulfill_order(order: ValidatedOrder) -> None:
         process(item)
 ```
 
-**Keep the check when any of these fail:** (1) object is mutable, (2) constructed outside this process (rehydrated from cache, queue, DB), (3) an untyped or plugin caller could produce a bad instance, (4) the object has been exposed to code that might have mutated it. Rehydration is the most common miss — `ValidatedOrder.model_validate_json(...)` freshly out of the validator is fine; the same type pulled from a cache with no re-validation is not.
+**Keep the check when any of these fail:** (1) the object graph is mutable *anywhere* — `frozen=True` prevents field reassignment, not mutation inside a `list` field or of the `Item`s themselves, (2) constructed outside this process (rehydrated from cache, queue, DB), (3) an untyped or plugin caller could produce a bad instance, (4) the object has been exposed to code that might have mutated it. Rehydration is the most common miss — `ValidatedOrder.model_validate_json(...)` freshly out of the validator is fine; the same type pulled from a cache with no re-validation is not. "Was validated once" is not "remains valid": trust an invariant only while every operation able to break it stays controlled.
 
 When you do trust the invariant, a single `assert order.items, "validator guarantees non-empty"` at the entry point documents the reasoning without sprinkling defensive `if` chains through the body.
 
@@ -1324,24 +1331,27 @@ def get_timeout() -> int:
 
 The real issue: `load_config` returns `dict[str, object]` because `json.loads` does. But this project's config has a known shape — fix the source type.
 
-**Correct (declare the real structure):**
+**Correct (declare the real structure; narrow where the runtime evidence exists):**
 
 ```python
-from typing import TypedDict
+from typing import TypedDict, cast
 
 class Config(TypedDict):
     timeout: int
     retries: int
 
 def load_config() -> Config:
-    return json.loads(CONFIG_PATH.read_text())  # validate or cast here, once
+    data = json.loads(CONFIG_PATH.read_text())
+    if not isinstance(data.get("timeout"), int) or not isinstance(data.get("retries"), int):
+        raise ValueError(f"malformed config at {CONFIG_PATH}")
+    return cast(Config, data)   # narrowed by the checks above — once, at the parse boundary
 
 def get_timeout() -> int:
     config = load_config()
     return config["timeout"]  # known to be int from Config
 ```
 
-Now every downstream consumer benefits from the typed shape.
+Now every downstream consumer benefits from the typed shape — and the annotation is backed by real checks. Annotating `json.loads(...)` as `Config` *without* validating merely relocates the unproven assertion from the call site to the signature; `json.loads` returns dynamically-typed data, so the checker accepts the lie silently. With a validation library, one adapter/model call at this boundary replaces the hand-rolled checks.
 
 **When `cast()` is the right tool:** when runtime logic narrows beyond what the checker can prove — e.g., after a literal tag check, a custom predicate, or a known invariant enforced elsewhere.
 
@@ -2191,7 +2201,7 @@ Callers must pass `timeout=`, `retries=`, etc. by name.
 
 **Heuristic:** the first one or two params can be positional (the "thing" the function operates on). Everything else — especially optional configuration — should be keyword-only.
 
-**For public APIs this is non-negotiable:** once a library ships positional config params, every reorder or addition is a breaking change.
+**For public APIs the calculus is strongest:** once a library ships positional config params, every reorder or addition is a breaking change. Note the trade keyword-only makes: parameter *names* become part of the compatibility surface, so renaming one is also a break — positional-only (`/`) exists for the opposite bet, preserving the freedom to rename the first one or two "thing" parameters.
 
 ## 5. Code Simplification
 
@@ -2657,11 +2667,13 @@ def attach_profiles(users: list[User], profiles: list[Profile]) -> list[Enriched
     return result
 ```
 
-**Correct (dict index — O(n + m)):**
+**Correct (dict index — O(n + m); duplicate policy stated):**
 
 ```python
 def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:
-    profiles_by_user = {p.user_id: p for p in profiles}
+    profiles_by_user: dict[str, Profile] = {}
+    for profile in profiles:
+        profiles_by_user.setdefault(profile.user_id, profile)   # first match wins, like the scan
     return [
         EnrichedUser(user=user, profile=profiles_by_user.get(user.id))
         for user in users
@@ -2669,6 +2681,8 @@ def attach_profiles(users: list[User], profiles: list[Profile]) -> list[Enriched
 ```
 
 For one-to-many grouping, `collections.defaultdict(list)` avoids the "check-then-create" dance: `posts_by_author[post.author_id].append(post)`. `itertools.groupby` groups already-sorted inputs without building a dict. Nested loops stay fine for small collections (under ~50 × 50), for one-off operations, or when the inner loop has rich logic that doesn't reduce to a key lookup.
+
+An index is a drop-in replacement only when the duplicate-key policy matches: the scan finds the *first* match, while a plain `{p.user_id: p for p in profiles}` keeps the *last*. Decide and say so in the code — first wins (`setdefault`), last wins (comprehension), duplicates are an error (check while building), one-to-many (`defaultdict(list)`). The ~50 × 50 threshold is a heuristic, not a law: element cost, call frequency, key construction, and memory pressure move it in both directions.
 
 ### 6.2 Combine Filter and Map Into One Pass
 
@@ -2909,11 +2923,11 @@ First call parses and stores; subsequent calls return the cached `Version`. `max
 from functools import cache
 
 @cache
-def load_schema(name: str) -> Schema:
-    return Schema.from_file(SCHEMA_DIR / f"{name}.json")
+def build_schema(spec: SchemaSpec) -> Schema:
+    return Schema.compile(spec)          # spec fully determines the result
 ```
 
-No size limit. Good when the key space is naturally small (like schema names) and entries are expensive to build.
+No size limit. Good when the key space is naturally small and entries are expensive to build. **The key must capture every input that influences the result:** a `load_schema(name)` that reads `SCHEMA_DIR / name` from disk caches the file's *contents* under a key that doesn't include them — it returns stale data forever if the file changes. Reading state that isn't in the arguments makes the function impure, and caching it freezes that state.
 
 **Requirements:**
 
@@ -2927,6 +2941,8 @@ No size limit. Good when the key space is naturally small (like schema names) an
 - The function has meaningful side effects (logging, writes)
 - The key space is unbounded and entries are large (cache grows without limit)
 - The computation is cheap and the call frequency is low
+- Callers may mutate the returned object — the cache hands every caller the same instance, so one caller's mutation becomes everyone's
+- Concurrent first calls must not duplicate work — these decorators don't lock; racing misses all execute
 
 **Hand-rolled caches:**
 
@@ -3286,29 +3302,32 @@ Module hygiene. Imports at the top, no import-time side effects, optional deps h
 
 ### 8.1 Handle Optional Dependencies Explicitly
 
-**Impact: LOW-MEDIUM (clear error messages instead of cryptic ImportError)**
+**Impact: LOW-MEDIUM (clear, correctly-scoped errors instead of cryptic failures far from the cause)**
 
-When a package has optional integrations, importing the module should not require every optional dep. Handle `ImportError` at module scope with a message pointing to the install extra; raising `None`-valued placeholders produces `AttributeError` far from the root cause.
+Optional dependencies have two import surfaces, and the guard belongs on the right one. The package's *shared* modules must not import an optional dep at all — otherwise it isn't optional (see `imports-lightweight-init`). The *integration-specific* module, which only users of that integration import, may fail at import — but with an actionable message, not a `None` placeholder that crashes with `AttributeError` far from the cause, and not a broad catch that misdiagnoses a broken install as a missing one.
 
-**Incorrect (silently swallowing the ImportError):**
+**Incorrect (placeholder crashes later; broad catch misdiagnoses):**
 
 ```python
 try:
     import anthropic
-except ImportError:
-    anthropic = None  # downstream code crashes with AttributeError later
+except ImportError:          # also catches anthropic's own broken transitive imports
+    anthropic = None         # downstream code crashes with AttributeError later
 
 class AnthropicProvider:
     def __init__(self):
         client = anthropic.Client()  # AttributeError: 'NoneType' has no 'Client'
 ```
 
-**Correct (raise with an actionable install hint; preserve the original cause):**
+**Correct (integration module guards its own import; distinguishes missing from broken):**
 
 ```python
+# providers/anthropic_provider.py — imported only by users of this integration
 try:
     import anthropic
-except ImportError as e:
+except ModuleNotFoundError as e:
+    if e.name != "anthropic":
+        raise                        # installed but broken — surface the real failure
     raise ImportError(
         "anthropic is required for AnthropicProvider. "
         "Install with: pip install 'mylib[anthropic]'"
@@ -3317,6 +3336,8 @@ except ImportError as e:
 class AnthropicProvider:
     ...
 ```
+
+`ModuleNotFoundError.name` identifies *which* module was missing — a transitive import failing inside an installed `anthropic` should propagate as itself, not as "please install anthropic."
 
 If the dep is optional at the *feature* level rather than the *module* level, defer the import into the function that needs it — users who never call it never pay the cost. Pair module-scope optional imports with a `TYPE_CHECKING` block (see `types-type-checking-imports`) when type hints should resolve without requiring the runtime dep.
 

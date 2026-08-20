@@ -52,6 +52,8 @@ async def thumbnail_all(image_urls: list[str]) -> list[Thumbnail]:
 
 ```python
 async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> list[Thumbnail]:
+    if max_concurrent < 1:
+        raise ValueError(f"max_concurrent must be >= 1, got {max_concurrent}")
     semaphore = asyncio.Semaphore(max_concurrent)
 
     async def bounded(url: str) -> Thumbnail:
@@ -61,9 +63,9 @@ async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> li
     return await asyncio.gather(*(bounded(url) for url in image_urls))
 ```
 
-Same interface, but at most eight thumbnails are in flight regardless of input size.
+Same interface, but at most eight thumbnails are in flight regardless of input size. The eager bound check matters: a zero-permit semaphore is a deadlock, not a limit.
 
-For streaming producers, bound the buffer too: an unbounded queue between a fast producer and a slow consumer just relocates the pile-up — `asyncio.Queue(maxsize=...)` makes the producer wait, which is the backpressure you want.
+**In-flight is not admission.** The semaphore bounds concurrent *work*, but `gather` still creates one task per item up front and retains every argument and every result — the task population, the backlog parked on the semaphore, and the result list all scale with input. Fine for bounded lists; for very large or streaming inputs, bound admission too: a fixed pool of workers reading from a bounded queue, windowed scheduling (process a chunk, then the next), or an async iterator that yields results instead of accumulating them. An unbounded queue between a fast producer and a slow consumer just relocates the pile-up — `asyncio.Queue(maxsize=...)` makes the producer wait, which is the backpressure you want.
 
 **Scope:** a fixed handful of coroutines needs no ceremony — the rule triggers when fan-out scales with input size (user-supplied lists, query results, directory walks). Pick bounds from downstream capacity, not from thin air, and expose them as parameters; libraries typically default to unlimited because they can't know the deployment's limits, which makes setting the bound the application's job. Related: `async-own-your-tasks` covers who supervises spawned work; this rule covers how much of it may run at once.
 
@@ -160,17 +162,23 @@ async def handle_order(order: Order) -> None:
         tg.create_task(reserve_stock(order))
 ```
 
-**When a task must outlive the block** (a background pump, a subscription), ownership becomes explicit bookkeeping: hold a strong reference, and tear the task down where the owner exits —
+`TaskGroup` couples fates: one failure cancels the siblings. That's right when the tasks are one unit of work, and wrong when items are independent and each failure needs its own accounting — then supervise tasks individually, or use `gather(return_exceptions=True)` with explicit `BaseException` handling per result (see `async-preserve-cancellation`).
+
+**When a task must outlive the block** (a background pump, a subscription), ownership becomes explicit bookkeeping: hold a strong reference, and tear the task down where the owner exits — observing what it died of:
 
 ```python
 self._pump = asyncio.create_task(self._pump_events(), name="event-pump")
 ...
 async def aclose(self) -> None:
     self._pump.cancel()
-    await asyncio.gather(self._pump, return_exceptions=True)   # drain: let finally blocks finish
+    try:
+        await self._pump                   # lets finally-cleanup finish; a pre-cancellation failure raises here
+    except asyncio.CancelledError:
+        if not self._pump.cancelled():     # not the pump's cancellation — it's ours; keep propagating
+            raise
 ```
 
-Cancel-then-drain matters: `cancel()` only *requests* cancellation; awaiting the task afterwards lets its `finally` cleanup complete before the owner leaves. For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.
+Awaiting after `cancel()` matters twice over: `cancel()` only *requests* cancellation, and the await both lets the task's `finally` blocks finish and surfaces a real exception if the task had already failed before the cancel. Draining with `gather(..., return_exceptions=True)` and ignoring the result silently discards exactly those failures — reserve that for tearing down many tasks whose errors are observed elsewhere (e.g. a done callback). For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.
 
 ### 1.5 Re-Raise Cancellation After Cleanup
 

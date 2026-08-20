@@ -49,11 +49,14 @@ def load_config(path: Path) -> Config | None:
 
 One block, one handler, one place to change. The caller sees the same behavior; the implementation is simpler.
 
+**Watch the scope you merge:** a single block makes every listed exception recoverable across *every* operation inside it. If a helper deep in one stage unexpectedly raises an exception type meant for a different stage, the merged handler converts a genuine defect into "config load failed." Merge only operations whose failures share one meaning and one recovery; when stages need distinct diagnostics but share the *policy*, deduplicate the handler body instead of widening the protected region — a small `_config_warning(path, stage, error)` helper called from three narrow blocks keeps stage attribution without three divergent handlers.
+
 **When to keep blocks separate:**
 
 - Different exceptions need **different** handling (log-and-return vs. retry vs. re-raise)
 - Intermediate values matter for the handler (you want the partial result when the second step fails)
 - The blocks are far apart in the function (folding them together would nest too much)
+- A listed exception type could plausibly escape a *different* stage than intended (broad types like `ValueError` or `OSError`) — merging misattributes it
 
 **Use `contextlib.suppress` for trivial "ignore the error" cases:**
 

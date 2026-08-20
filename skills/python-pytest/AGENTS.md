@@ -76,6 +76,8 @@ def test_render_invoice_totals_include_tax():
 
 Before committing a test, name the contract it defends in the test name. If the honest name is `test_render_invoice_runs`, delete the test — or find the real assertion. Probes written to exercise new code during development are fine as a workflow; the discipline is deleting them before commit instead of promoting them to `skip`, `xfail`, or a literal `assert True`.
 
+One deliberate exception: an explicitly-named smoke contract — `test_all_modules_import`, `test_app_starts_with_default_config` — where "does not crash" *is* the observable contract (import cycles, missing deps, broken entry points are the regressions it defends). The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe.
+
 ### 1.2 Derive Expected Values Independently of the Implementation
 
 **Impact: HIGH (a test that recomputes the code under test proves only self-consistency)**
@@ -182,6 +184,8 @@ def test_cache_eviction():
 ```
 
 The repair toolkit: control the sources of nondeterminism (inject clocks, seed RNGs, synchronize on events per `determinism-sync-not-sleep`), isolate leaked state (`fixtures-restore-global-state`), and reproduce order dependence by running the failing test alone and with `-p no:randomly` / a fixed seed to bisect. When a fix genuinely can't land now, a *strict, linked* skip is the honest parking spot: `pytest.mark.skip(reason="racy: see ISSUE-123")` — visible, tracked, and not silently consuming retries on every run.
+
+Retries as an *explicit operational policy* — a labeled quarantine lane for tests crossing a boundary you don't control (external services, real browsers), with owners and an exit path — are triage, not masking. The line: masking silently normalizes failure in the main suite; quarantine names it, isolates it from the merge signal, and tracks it toward a fix.
 
 ### 2.2 Synchronize on Events, Not Sleeps
 
@@ -410,6 +414,8 @@ def test_fetch_user_parses_response(fake_transport):
 
 Now request construction and response parsing are under test; only the socket is fake. The litmus: could this test fail if the production code (not the test) had a bug? If every assertion is satisfied by construction of the mocks, the answer is no. And when a fake drifts from the real API's shape, update the fake — adding compatibility shims to production code so old fakes keep passing inverts the relationship entirely.
 
+**State the test level:** this rule targets integration-style tests of a client or adapter — the code whose job *is* the boundary. A focused unit test may legitimately mock an owned, independently-tested collaborator to isolate the unit's own logic; the tautology trap is mocking away the very behavior the test claims to cover. Wherever a hand-rolled fake stands in for a real collaborator long-term, check it against the real implementation somewhere, or drift is invisible.
+
 ### 4.3 Patch Where the Name Is Looked Up, Not Where It's Defined
 
 **Impact: MEDIUM-HIGH (a patch at the definition site silently misses the import already taken)**
@@ -453,25 +459,31 @@ The suite as a system. Contract-distinct parametrization, collision-free module 
 
 **Impact: LOW-MEDIUM (same-named test modules pass separately and fail when suites compose)**
 
-Under pytest's default `prepend` import mode, a test module in a non-package directory imports under its bare filename: `service/tests/test_utils.py` and `scripts/tests/test_utils.py` both claim the import name `test_utils`. Collect either tree alone and it passes; collect both in one invocation and pytest raises `ImportPathMismatchError` (or one module shadows the other). The failure appears exactly when suites compose — the combined CI run breaks while every per-project run stays green.
+Under pytest's default `prepend` import mode, a test module's import identity is derived by walking up from the file through consecutive `__init__.py` directories: a module in a non-package directory imports under its bare filename, and a `tests/` package whose *parent* is not a package imports as `tests.<module>`. Two trees can therefore claim the same identity — `service/tests/test_utils.py` and `scripts/tests/test_utils.py` collide as `test_utils` (no packages) *and still collide* as `tests.test_utils` if only the `tests/` directories carry `__init__.py`. Either tree passes alone; collecting both in one invocation raises `ImportPathMismatchError`. The failure appears exactly when suites compose.
 
-**Incorrect (two non-package trees claim one import identity):**
-
-```
-service/tests/test_utils.py      # imports as "test_utils"
-scripts/tests/test_utils.py      # also "test_utils" → ImportPathMismatchError when both collect
-```
-
-**Correct (unique identities — packaged trees, or unique filenames):**
+**Incorrect (same identity — with or without a lone `tests/__init__.py`):**
 
 ```
-service/tests/__init__.py        # modules import as "service.tests.*"
+service/tests/test_utils.py      # "test_utils"        — collides with:
+scripts/tests/test_utils.py      # "test_utils"
+# adding only service/tests/__init__.py and scripts/tests/__init__.py
+# renames both to "tests.test_utils" — still one identity, still colliding
+```
+
+**Correct (globally-unique filenames — simplest; or importlib mode):**
+
+```
 service/tests/test_service_utils.py
-scripts/tests/__init__.py        # distinct package: "scripts.tests.*"
 scripts/tests/test_script_utils.py
 ```
 
-Three ways out, pick one per repository: add `__init__.py` so test trees are packages with distinct package-qualified names; keep flat un-packaged trees but give test modules globally-unique filenames; or set `--import-mode=importlib`, which pytest recommends for new projects and which removes the uniqueness requirement altogether. Per-directory `conftest.py` files are unaffected — many conftests with the same filename are normal, supported pytest design. Naming test modules after what they test (`test_billing_rounding.py`, not a third `test_utils.py`) sidesteps the collision and reads better in failure output anyway.
+```toml
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"   # pytest's recommendation for new projects;
+                                      # removes the uniqueness requirement entirely
+```
+
+Three ways out, pick one per repository: globally-unique test module filenames (naming modules after what they test — `test_billing_rounding.py`, not a third `test_utils.py` — does this as a side effect and reads better in failure output); `--import-mode=importlib`, recommended for new projects, with the caveat that test modules then can't import *each other* by bare name; or full package chains — `__init__.py` from a uniquely-named root all the way down (`service/__init__.py` + `service/tests/__init__.py` → `service.tests.test_utils`), not just in the `tests/` directory. Per-directory `conftest.py` files with the same filename are normal, supported pytest design and are not what collides here.
 
 ### 5.2 Make the Plugin Surface Explicit When Autoload Bites
 

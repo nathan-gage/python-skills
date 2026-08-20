@@ -43,4 +43,6 @@ def with_pending_action(state: AppState, action: str) -> AppState:
 - `apply_*`, `set_*`, `update_*_inplace` — mutate, return `None`
 - `with_*`, `update_*`, `derive_*` — return a new value, leave input alone
 
+Mutation APIs that return *new information* are fine — `dict.pop` returns the removed value, `setdefault` returns the present one; the returned value carries something the caller didn't have. The trap this rule targets is returning the *mutated object itself*, which is what invites the two wrong mental models. Ambiguity, not the mere existence of a return value, is the problem.
+
 The contract should be obvious from the name and signature without reading the body.

@@ -443,9 +443,9 @@
         "defensive",
         "trust-boundary"
       ],
-      "incorrect": "class ValidatedOrder(BaseModel):\n    model_config = {\"frozen\": True}\n    items: list[Item]\n    total: int\n\n    @model_validator(mode=\"after\")\n    def _check(self) -> \"ValidatedOrder\":\n        if not self.items:\n            raise ValueError(\"order must have items\")\n        if self.total < 0:\n            raise ValueError(\"total must be non-negative\")\n        return self\n\n\ndef fulfill_order(order: ValidatedOrder) -> None:\n    if not order.items:           # validator guarantees this\n        raise ValueError(\"order must have items\")\n    if order.total < 0:           # validator guarantees this\n        raise ValueError(\"total must be non-negative\")\n    for item in order.items:\n        process(item)",
+      "incorrect": "class ValidatedOrder(BaseModel):\n    model_config = {\"frozen\": True}\n    items: tuple[Item, ...]   # transitively frozen \u2014 frozen=True alone only stops field reassignment\n    total: int\n\n    @model_validator(mode=\"after\")\n    def _check(self) -> \"ValidatedOrder\":\n        if not self.items:\n            raise ValueError(\"order must have items\")\n        if self.total < 0:\n            raise ValueError(\"total must be non-negative\")\n        return self\n\n\ndef fulfill_order(order: ValidatedOrder) -> None:\n    if not order.items:           # validator guarantees this\n        raise ValueError(\"order must have items\")\n    if order.total < 0:           # validator guarantees this\n        raise ValueError(\"total must be non-negative\")\n    for item in order.items:\n        process(item)",
       "correct": "def fulfill_order(order: ValidatedOrder) -> None:\n    for item in order.items:\n        process(item)",
-      "explanation": "Once a value has been validated *and the validated object is immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation."
+      "explanation": "Once a value has been validated *and the validated object is transitively immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation."
     },
     {
       "rule": "error-validate-at-boundaries",
@@ -510,9 +510,9 @@
         "optional-dependencies",
         "packaging"
       ],
-      "incorrect": "try:\n    import anthropic\nexcept ImportError:\n    anthropic = None  # downstream code crashes with AttributeError later\n\nclass AnthropicProvider:\n    def __init__(self):\n        client = anthropic.Client()  # AttributeError: 'NoneType' has no 'Client'",
-      "correct": "try:\n    import anthropic\nexcept ImportError as e:\n    raise ImportError(\n        \"anthropic is required for AnthropicProvider. \"\n        \"Install with: pip install 'mylib[anthropic]'\"\n    ) from e\n\nclass AnthropicProvider:\n    ...",
-      "explanation": "When a package has optional integrations, importing the module should not require every optional dep. Handle `ImportError` at module scope with a message pointing to the install extra; raising `None`-valued placeholders produces `AttributeError` far from the root cause."
+      "incorrect": "try:\n    import anthropic\nexcept ImportError:          # also catches anthropic's own broken transitive imports\n    anthropic = None         # downstream code crashes with AttributeError later\n\nclass AnthropicProvider:\n    def __init__(self):\n        client = anthropic.Client()  # AttributeError: 'NoneType' has no 'Client'",
+      "correct": "# providers/anthropic_provider.py \u2014 imported only by users of this integration\ntry:\n    import anthropic\nexcept ModuleNotFoundError as e:\n    if e.name != \"anthropic\":\n        raise                        # installed but broken \u2014 surface the real failure\n    raise ImportError(\n        \"anthropic is required for AnthropicProvider. \"\n        \"Install with: pip install 'mylib[anthropic]'\"\n    ) from e\n\nclass AnthropicProvider:\n    ...",
+      "explanation": "Optional dependencies have two import surfaces, and the guard belongs on the right one. The package's *shared* modules must not import an optional dep at all \u2014 otherwise it isn't optional (see `imports-lightweight-init`). The *integration-specific* module, which only users of that integration import, may fail at import \u2014 but with an actionable message, not a `None` placeholder that crashes with `AttributeError` far from the cause, and not a broad catch that misdiagnoses a broken install as a missing one."
     },
     {
       "rule": "imports-remove-unused",
@@ -668,7 +668,7 @@
         "nested-loops"
       ],
       "incorrect": "def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:\n    result = []\n    for user in users:\n        matching = None\n        for profile in profiles:\n            if profile.user_id == user.id:\n                matching = profile\n                break\n        result.append(EnrichedUser(user=user, profile=matching))\n    return result",
-      "correct": "def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:\n    profiles_by_user = {p.user_id: p for p in profiles}\n    return [\n        EnrichedUser(user=user, profile=profiles_by_user.get(user.id))\n        for user in users\n    ]",
+      "correct": "def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:\n    profiles_by_user: dict[str, Profile] = {}\n    for profile in profiles:\n        profiles_by_user.setdefault(profile.user_id, profile)   # first match wins, like the scan\n    return [\n        EnrichedUser(user=user, profile=profiles_by_user.get(user.id))\n        for user in users\n    ]",
       "explanation": "When code says \"for each item in A, find the matching item in B,\" the naive pattern is nested `for` + `if x.id == y.id` \u2014 that's O(n \u00d7 m). Build a dict from B once, then it's O(n + m) with each lookup O(1)."
     },
     {
@@ -899,7 +899,7 @@
         "design"
       ],
       "incorrect": "from typing import cast\n\ndef load_config() -> dict[str, object]:\n    return json.loads(CONFIG_PATH.read_text())\n\ndef get_timeout() -> int:\n    config = load_config()\n    return cast(int, config[\"timeout\"])  # we're just telling the checker to trust us",
-      "correct": "from typing import TypedDict\n\nclass Config(TypedDict):\n    timeout: int\n    retries: int\n\ndef load_config() -> Config:\n    return json.loads(CONFIG_PATH.read_text())  # validate or cast here, once\n\ndef get_timeout() -> int:\n    config = load_config()\n    return config[\"timeout\"]  # known to be int from Config",
+      "correct": "from typing import TypedDict, cast\n\nclass Config(TypedDict):\n    timeout: int\n    retries: int\n\ndef load_config() -> Config:\n    data = json.loads(CONFIG_PATH.read_text())\n    if not isinstance(data.get(\"timeout\"), int) or not isinstance(data.get(\"retries\"), int):\n        raise ValueError(f\"malformed config at {CONFIG_PATH}\")\n    return cast(Config, data)   # narrowed by the checks above \u2014 once, at the parse boundary\n\ndef get_timeout() -> int:\n    config = load_config()\n    return config[\"timeout\"]  # known to be int from Config",
       "explanation": "`cast(T, value)` tells the checker to pretend `value` is a `T` with no runtime check. When called to paper over a structural mismatch, it hides a design problem. Reach for it only when runtime logic genuinely narrows in a way the checker can't express."
     },
     {

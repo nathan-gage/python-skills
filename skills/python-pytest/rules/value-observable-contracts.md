@@ -30,3 +30,5 @@ def test_render_invoice_totals_include_tax():
 ```
 
 Before committing a test, name the contract it defends in the test name. If the honest name is `test_render_invoice_runs`, delete the test — or find the real assertion. Probes written to exercise new code during development are fine as a workflow; the discipline is deleting them before commit instead of promoting them to `skip`, `xfail`, or a literal `assert True`.
+
+One deliberate exception: an explicitly-named smoke contract — `test_all_modules_import`, `test_app_starts_with_default_config` — where "does not crash" *is* the observable contract (import cycles, missing deps, broken entry points are the regressions it defends). The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe.

@@ -33,3 +33,5 @@ def test_fetch_user_parses_response(fake_transport):
 ```
 
 Now request construction and response parsing are under test; only the socket is fake. The litmus: could this test fail if the production code (not the test) had a bug? If every assertion is satisfied by construction of the mocks, the answer is no. And when a fake drifts from the real API's shape, update the fake — adding compatibility shims to production code so old fakes keep passing inverts the relationship entirely.
+
+**State the test level:** this rule targets integration-style tests of a client or adapter — the code whose job *is* the boundary. A focused unit test may legitimately mock an owned, independently-tested collaborator to isolate the unit's own logic; the tautology trap is mocking away the very behavior the test claims to cover. Wherever a hand-rolled fake stands in for a real collaborator long-term, check it against the real implementation somewhere, or drift is invisible.

@@ -24,24 +24,27 @@ def get_timeout() -> int:
 
 The real issue: `load_config` returns `dict[str, object]` because `json.loads` does. But this project's config has a known shape — fix the source type.
 
-**Correct (declare the real structure):**
+**Correct (declare the real structure; narrow where the runtime evidence exists):**
 
 ```python
-from typing import TypedDict
+from typing import TypedDict, cast
 
 class Config(TypedDict):
     timeout: int
     retries: int
 
 def load_config() -> Config:
-    return json.loads(CONFIG_PATH.read_text())  # validate or cast here, once
+    data = json.loads(CONFIG_PATH.read_text())
+    if not isinstance(data.get("timeout"), int) or not isinstance(data.get("retries"), int):
+        raise ValueError(f"malformed config at {CONFIG_PATH}")
+    return cast(Config, data)   # narrowed by the checks above — once, at the parse boundary
 
 def get_timeout() -> int:
     config = load_config()
     return config["timeout"]  # known to be int from Config
 ```
 
-Now every downstream consumer benefits from the typed shape.
+Now every downstream consumer benefits from the typed shape — and the annotation is backed by real checks. Annotating `json.loads(...)` as `Config` *without* validating merely relocates the unproven assertion from the call site to the signature; `json.loads` returns dynamically-typed data, so the checker accepts the lie silently. With a validation library, one adapter/model call at this boundary replaces the hand-rolled checks.
 
 **When `cast()` is the right tool:** when runtime logic narrows beyond what the checker can prove — e.g., after a literal tag check, a custom predicate, or a known invariant enforced elsewhere.
 

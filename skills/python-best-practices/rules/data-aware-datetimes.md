@@ -37,3 +37,5 @@ display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # named zone, DST 
 **Parsing input:** if callers can send naive datetimes, decide once whether to reject or assume a fixed zone. Never *silently* treat naive as UTC. For Pydantic v2, `AwareDatetime` rejects naive values at the model boundary. For PostgreSQL, use `TIMESTAMPTZ`; for SQLite/MySQL, store ISO-8601 strings with `+00:00` or epoch milliseconds.
 
 Naive is acceptable only inside a tight block where every value is naive and the timezone is documented in scope, or for pure date arithmetic (use `date`, not `datetime`). If the value outlives the function it's created in, it should be aware.
+
+This rule is about *instants*. Civil concepts need a different shape: all-day values are a `date`; recurring local schedules and future events pinned to a wall clock are a local time plus a named zone, where converting to UTC too early destroys the DST-following semantics the domain actually wants. Ask what the value represents before normalizing it.

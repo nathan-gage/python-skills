@@ -13,7 +13,7 @@
         "backpressure"
       ],
       "incorrect": "async def thumbnail_all(image_urls: list[str]) -> list[Thumbnail]:\n    return await asyncio.gather(*(make_thumbnail(url) for url in image_urls))",
-      "correct": "async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> list[Thumbnail]:\n    semaphore = asyncio.Semaphore(max_concurrent)\n\n    async def bounded(url: str) -> Thumbnail:\n        async with semaphore:\n            return await make_thumbnail(url)\n\n    return await asyncio.gather(*(bounded(url) for url in image_urls))",
+      "correct": "async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> list[Thumbnail]:\n    if max_concurrent < 1:\n        raise ValueError(f\"max_concurrent must be >= 1, got {max_concurrent}\")\n    semaphore = asyncio.Semaphore(max_concurrent)\n\n    async def bounded(url: str) -> Thumbnail:\n        async with semaphore:\n            return await make_thumbnail(url)\n\n    return await asyncio.gather(*(bounded(url) for url in image_urls))",
       "explanation": "`gather` over a per-item coroutine starts *everything at once*. For 10 items that's concurrency; for 10,000 it's 10,000 open sockets, 10,000 in-flight payloads, and a thundering herd against whatever sits downstream. The smoke test with five items passes; production input sizes don't. Concurrent fan-out that scales with input needs an explicit bound sized to the real limit \u2014 connection pool, rate limit, memory per item."
     },
     {

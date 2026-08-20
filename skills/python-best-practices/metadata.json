@@ -1,16 +1,14 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "organization": "Python Best Practices",
   "date": "August 2026",
   "pythonVersion": ">=3.11",
-  "abstract": "Python software engineering guidelines for agent consumption. 79 rules across 9 categories, prioritized by impact from data modeling, error handling, and async concurrency down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo.",
+  "abstract": "Python software engineering guidelines for agent consumption. 75 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo. Asyncio and concurrency guidance lives in the companion python-async-best-practices skill.",
   "references": [
     "https://docs.python.org/3/library/typing.html",
     "https://docs.python.org/3/library/dataclasses.html",
     "https://docs.python.org/3/library/exceptions.html",
     "https://docs.python.org/3/reference/simple_stmts.html#the-assert-statement",
-    "https://docs.python.org/3/library/asyncio-dev.html",
-    "https://docs.python.org/3/library/asyncio-task.html",
     "https://peps.python.org/pep-0585/",
     "https://docs.pydantic.dev/",
     "https://mypy.readthedocs.io/",

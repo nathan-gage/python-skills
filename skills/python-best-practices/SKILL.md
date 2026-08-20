@@ -1,16 +1,16 @@
 ---
 name: python-best-practices
-description: Python software engineering guidelines from real PR review patterns. This skill should be used when writing, reviewing, or refactoring Python code — especially dataclasses, service interfaces, error handling, async concurrency, and type annotations. Triggers on tasks involving Python modules, API design, data modeling, type safety, exception handling, async/await code, or refactoring for maintainability.
+description: Python software engineering guidelines from real PR review patterns. This skill should be used when writing, reviewing, or refactoring Python code — especially dataclasses, service interfaces, error handling, and type annotations. Triggers on tasks involving Python modules, API design, data modeling, type safety, exception handling, or refactoring for maintainability. For asyncio and concurrency guidance, see the python-async-best-practices skill.
 license: MIT
 metadata:
   author: python-best-practices
-  version: "1.4.0"
+  version: "1.5.0"
   pythonVersion: ">=3.11"
 ---
 
 # Python Best Practices
 
-Guidelines for writing and reviewing Python. 79 rules across 9 categories, prioritized by impact.
+Guidelines for writing and reviewing Python. 75 rules across 8 categories, prioritized by impact.
 
 A rule match is a signal, not a verdict. Most rules are design preferences for new code, not bugs to fix across the repo — check the rule's impact level before flagging in review or refactoring stable code.
 
@@ -47,13 +47,12 @@ Rules tagged `applicability:pydantic` are Pydantic-specific.
 |----------|----------|--------|--------|
 | 1 | Data Modeling | HIGH | `data-` |
 | 2 | Error Handling | MEDIUM-HIGH | `error-` |
-| 3 | Concurrency & Async | MEDIUM-HIGH | `async-` |
-| 4 | Type Safety | MEDIUM-HIGH | `types-` |
-| 5 | API Design | MEDIUM | `api-` |
-| 6 | Code Simplification | LOW-MEDIUM | `simplify-` |
-| 7 | Performance | LOW-MEDIUM | `perf-` |
-| 8 | Naming | LOW-MEDIUM | `naming-` |
-| 9 | Imports & Structure | LOW | `imports-` |
+| 3 | Type Safety | MEDIUM-HIGH | `types-` |
+| 4 | API Design | MEDIUM | `api-` |
+| 5 | Code Simplification | LOW-MEDIUM | `simplify-` |
+| 6 | Performance | LOW-MEDIUM | `perf-` |
+| 7 | Naming | LOW-MEDIUM | `naming-` |
+| 8 | Imports & Structure | LOW | `imports-` |
 
 Section impact is a typical-case label; individual rules range one level above or below — check the rule file.
 
@@ -88,13 +87,6 @@ Section impact is a typical-case label; individual rules range one level above o
 - `error-log-exception-context` — `logger.exception(...)` inside `except`; keep the traceback in the log
 - `error-repr-in-messages` — `f"tool {name!r}"` for identifiers in error text
 - `error-match-types-not-messages` — Classify by exception type and status code, never message substrings
-
-### Concurrency & Async (`async-`)
-
-- `async-no-blocking-event-loop` — No sync I/O, sleeps, or heavy CPU in `async def`; `asyncio.to_thread` for blocking calls
-- `async-own-your-tasks` — `TaskGroup` by default; hold references and cancel-then-drain longer-lived tasks
-- `async-bound-concurrency` — Semaphore/queue bounds when fan-out scales with input size
-- `async-generator-cleanup` — `aclosing()` / explicit `aclose()` when leaving an async generator early
 
 ### Type Safety (`types-`)
 

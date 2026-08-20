@@ -1,4 +1,4 @@
-"""Proofs for python-best-practices async-* rule claims."""
+"""Proofs for python-async-best-practices rule claims."""
 
 import asyncio
 import concurrent.futures

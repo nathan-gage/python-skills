@@ -1,0 +1,62 @@
+{
+  "generated_by": "src/extract_tests.py",
+  "count": 4,
+  "cases": [
+    {
+      "rule": "async-bound-concurrency",
+      "title": "Bound Fan-Out Concurrency",
+      "impact": "MEDIUM",
+      "tags": [
+        "async",
+        "asyncio",
+        "semaphore",
+        "backpressure"
+      ],
+      "incorrect": "async def thumbnail_all(image_urls: list[str]) -> list[Thumbnail]:\n    return await asyncio.gather(*(make_thumbnail(url) for url in image_urls))",
+      "correct": "async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> list[Thumbnail]:\n    semaphore = asyncio.Semaphore(max_concurrent)\n\n    async def bounded(url: str) -> Thumbnail:\n        async with semaphore:\n            return await make_thumbnail(url)\n\n    return await asyncio.gather(*(bounded(url) for url in image_urls))",
+      "explanation": "`gather` over a per-item coroutine starts *everything at once*. For 10 items that's concurrency; for 10,000 it's 10,000 open sockets, 10,000 in-flight payloads, and a thundering herd against whatever sits downstream. The smoke test with five items passes; production input sizes don't. Concurrent fan-out that scales with input needs an explicit bound sized to the real limit \u2014 connection pool, rate limit, memory per item."
+    },
+    {
+      "rule": "async-generator-cleanup",
+      "title": "Close Abandoned Async Generators Deterministically",
+      "impact": "MEDIUM",
+      "tags": [
+        "async",
+        "generators",
+        "cleanup",
+        "aclosing"
+      ],
+      "incorrect": "async def find_header(path: str) -> Record | None:\n    async for record in read_records(path):   # read_records holds a file + connection\n        if record.is_header:\n            return record                     # generator never finalized here\n    return None",
+      "correct": "from contextlib import aclosing\n\nasync def find_header(path: str) -> Record | None:\n    async with aclosing(read_records(path)) as records:\n        async for record in records:\n            if record.is_header:\n                return record                 # aclose() runs on exit \u2014 finally blocks included\n    return None",
+      "explanation": "Leaving an `async for` early \u2014 `break`, `return`, an exception \u2014 abandons the generator with its `finally` blocks and `async with` cleanup still pending. Nothing runs them at that point: finalization waits for garbage collection or the loop's `shutdown_asyncgens()` at teardown, where the cleanup executes late, on a loop that's shutting down, or surfaces as an unraisable-exception warning after the test that caused it has already passed. Locks held inside the generator stay held in the meantime."
+    },
+    {
+      "rule": "async-no-blocking-event-loop",
+      "title": "Don't Block the Event Loop",
+      "impact": "HIGH",
+      "tags": [
+        "async",
+        "asyncio",
+        "blocking",
+        "threads"
+      ],
+      "incorrect": "async def get_report(report_id: str) -> Report:\n    raw = cache.get(report_id)                  # sync network round-trip\n    if raw is None:\n        raw = requests.get(f\"{API}/reports/{report_id}\").content   # blocks the loop\n        time.sleep(0.1)                         # blocks the loop \u2014 not just this task\n    return pickle.loads(raw)                    # large payloads block for real milliseconds",
+      "correct": "async def get_report(report_id: str) -> Report:\n    raw = await cache.get(report_id)\n    if raw is None:\n        response = await http_client.get(f\"{API}/reports/{report_id}\")\n        raw = response.content\n        await asyncio.sleep(0.1)\n    return await asyncio.to_thread(pickle.loads, raw)",
+      "explanation": "An event loop runs one callback at a time. A synchronous call inside `async def` \u2014 `time.sleep`, a sync HTTP client, a big `pickle.loads`, file I/O on a slow disk \u2014 freezes *every* task on the loop until it returns: heartbeats stop, timeouts can't fire, concurrent requests queue behind it. The single-request smoke test passes; the incident happens under load."
+    },
+    {
+      "rule": "async-own-your-tasks",
+      "title": "Every Task Needs an Owner",
+      "impact": "HIGH",
+      "tags": [
+        "async",
+        "asyncio",
+        "tasks",
+        "structured-concurrency"
+      ],
+      "incorrect": "async def handle_order(order: Order) -> None:\n    asyncio.create_task(notify_warehouse(order))   # may be GC'd; errors surface at GC time\n    results = await asyncio.gather(                # charge fails \u2192 refund keeps running, unowned\n        charge_card(order),\n        reserve_stock(order),\n    )",
+      "correct": "async def handle_order(order: Order) -> None:\n    async with asyncio.TaskGroup() as tg:\n        tg.create_task(notify_warehouse(order))\n        tg.create_task(charge_card(order))\n        tg.create_task(reserve_stock(order))",
+      "explanation": "A task someone spawns and nobody awaits has three failure modes. The event loop keeps only a weak reference, so a fire-and-forget task can be garbage-collected mid-flight (the `create_task` docs warn about exactly this). Its exception is reported only when the task is collected \u2014 \"Task exception was never retrieved,\" long after the cause. And when the spawning code errors out, the task keeps running against torn-down state. `asyncio.gather` has the same orphan problem on failure: the first exception propagates while sibling coroutines keep running unsupervised."
+    }
+  ]
+}

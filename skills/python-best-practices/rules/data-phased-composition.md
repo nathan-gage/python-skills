@@ -54,3 +54,5 @@ class UserProfile:
 ```
 
 Consumers check one optional: `if profile.billing is not None: use profile.billing.card_last4`. Every billing field is guaranteed present when `billing` is. The type system enforces the co-occurrence that was always true in practice. Rule of thumb: three or more optionals that always set/unset together belong in a nested struct.
+
+**Scope:** Keep fields independent when they do not actually appear and disappear together; nesting unrelated optionals only moves the checks.

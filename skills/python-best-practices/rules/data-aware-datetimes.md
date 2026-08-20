@@ -22,18 +22,20 @@ def stamp() -> datetime:
 **Correct (UTC-aware at the boundary; local zone only for display):**
 
 ```python
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 def stamp() -> datetime:
-    return datetime.now(timezone.utc)     # aware; round-trips through isoformat() cleanly
+    return datetime.now(UTC)              # aware; round-trips through isoformat() cleanly
 
-stored = datetime.now(timezone.utc)
+stored = datetime.now(UTC)
 display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # named zone, DST handled
 ```
 
-`zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
+`UTC` (3.11+) is an alias for `timezone.utc` — either spelling is fine; match the codebase. `zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
 
 **Parsing input:** if callers can send naive datetimes, decide once whether to reject or assume a fixed zone. Never *silently* treat naive as UTC. For Pydantic v2, `AwareDatetime` rejects naive values at the model boundary. For PostgreSQL, use `TIMESTAMPTZ`; for SQLite/MySQL, store ISO-8601 strings with `+00:00` or epoch milliseconds.
 
-Naive is acceptable only inside a tight block where every value is naive and the timezone is documented in scope, or for pure date arithmetic (use `date`, not `datetime`). If the value outlives the function it's created in, it should be aware.
+**When naive datetimes are acceptable:** Keep them inside a tight block where every value is naive and the timezone is documented in scope, or use `date` for pure date arithmetic. If the value outlives the function it's created in, it should be aware.
+
+This rule is about *instants*. Civil concepts need a different shape: all-day values are a `date`; recurring local schedules and future events pinned to a wall clock are a local time plus a named zone, where converting to UTC too early destroys the DST-following semantics the domain actually wants. Ask what the value represents before normalizing it.

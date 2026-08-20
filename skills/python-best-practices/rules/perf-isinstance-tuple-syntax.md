@@ -16,7 +16,7 @@ This is a micro-optimization, not a correctness rule. Apply it only when:
 2. You have profiling data showing `isinstance` is a meaningful share of the time
 3. You'd otherwise reach for a more invasive change (rewriting the dispatch, caching results)
 
-In normal code, write whichever reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
+**Keep normal code natural:** write whichever form reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
 
 **Incorrect (rewriting `A | B` to `(A, B)` everywhere as a stylistic crusade):**
 

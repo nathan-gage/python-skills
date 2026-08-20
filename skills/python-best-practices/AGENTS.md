@@ -1,8 +1,8 @@
 # Python Best Practices
 
-**Version 1.3.0**
+**Version 1.5.0**
 Python Best Practices
-April 2026
+August 2026
 
 > **Note:**
 > This document is optimized for AI agents and LLMs that maintain, generate,
@@ -14,7 +14,7 @@ April 2026
 
 ## Abstract
 
-Python software engineering guidelines for agent consumption. 70 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo.
+Python software engineering guidelines for agent consumption. 75 rules across 8 categories, prioritized by impact from data modeling and error handling down to naming and import hygiene. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites primary sources where the rule depends on language or library behavior. Rules assume Python 3.11+ as a baseline; rules depending on a higher version (e.g., 3.13 for warnings.deprecated) are called out inline. A rule match is a signal, not a verdict: most rules are design preferences for new code rather than bugs to fix across the repo. Asyncio and concurrency guidance lives in the companion python-async-best-practices skill.
 
 ---
 
@@ -29,32 +29,36 @@ Python software engineering guidelines for agent consumption. 70 rules across 8 
    - 1.6 [Never Use Mutable Default Arguments](#16-never-use-mutable-default-arguments)
    - 1.7 [Phase Related Optional Fields Into Nested Structs](#17-phase-related-optional-fields-into-nested-structs)
    - 1.8 [Pick a Mutation Contract](#18-pick-a-mutation-contract)
-   - 1.9 [Use Discriminated Unions Over Optional Bags](#19-use-discriminated-unions-over-optional-bags)
-   - 1.10 [Use Timezone-Aware Datetimes at Boundaries](#110-use-timezone-aware-datetimes-at-boundaries)
-   - 1.11 [Use a Sentinel Object When None Is a Real Domain Value](#111-use-a-sentinel-object-when-none-is-a-real-domain-value)
+   - 1.9 [Remember bool Is an int Subtype](#19-remember-bool-is-an-int-subtype)
+   - 1.10 [Use Discriminated Unions Over Optional Bags](#110-use-discriminated-unions-over-optional-bags)
+   - 1.11 [Use Timezone-Aware Datetimes at Boundaries](#111-use-timezone-aware-datetimes-at-boundaries)
+   - 1.12 [Use a Sentinel Object When None Is a Real Domain Value](#112-use-a-sentinel-object-when-none-is-a-real-domain-value)
 2. [Error Handling](#2-error-handling) — **MEDIUM-HIGH**
    - 2.1 [Catch Specific Exception Types](#21-catch-specific-exception-types)
-   - 2.2 [Consolidate try/except Blocks with the Same Handler](#22-consolidate-tryexcept-blocks-with-the-same-handler)
-   - 2.3 [Inherit New Exceptions from Existing Base Exceptions](#23-inherit-new-exceptions-from-existing-base-exceptions)
-   - 2.4 [Preserve Tracebacks When Logging Exceptions](#24-preserve-tracebacks-when-logging-exceptions)
-   - 2.5 [Trust Validated State Within the Same Trust Domain](#25-trust-validated-state-within-the-same-trust-domain)
-   - 2.6 [Use !r Format for Identifiers in Error Messages](#26-use-r-format-for-identifiers-in-error-messages)
-   - 2.7 [Use assert Only for Debug-Only Internal Invariants](#27-use-assert-only-for-debug-only-internal-invariants)
-   - 2.8 [Use assert_never for Exhaustiveness Checks](#28-use-assertnever-for-exhaustiveness-checks)
-   - 2.9 [Use raise ... from to Preserve Exception Causality](#29-use-raise-from-to-preserve-exception-causality)
-   - 2.10 [Use with / async with for Resource Lifetimes](#210-use-with-async-with-for-resource-lifetimes)
-   - 2.11 [Validate Input at System Boundaries](#211-validate-input-at-system-boundaries)
+   - 2.2 [Classify Errors by Type, Not Message Text](#22-classify-errors-by-type-not-message-text)
+   - 2.3 [Consolidate try/except Blocks with the Same Handler](#23-consolidate-tryexcept-blocks-with-the-same-handler)
+   - 2.4 [Inherit New Exceptions from Existing Base Exceptions](#24-inherit-new-exceptions-from-existing-base-exceptions)
+   - 2.5 [Preserve Tracebacks When Logging Exceptions](#25-preserve-tracebacks-when-logging-exceptions)
+   - 2.6 [Trust Validated State Within the Same Trust Domain](#26-trust-validated-state-within-the-same-trust-domain)
+   - 2.7 [Use !r Format for Identifiers in Error Messages](#27-use-r-format-for-identifiers-in-error-messages)
+   - 2.8 [Use assert Only for Debug-Only Internal Invariants](#28-use-assert-only-for-debug-only-internal-invariants)
+   - 2.9 [Use assert_never for Exhaustiveness Checks](#29-use-assertnever-for-exhaustiveness-checks)
+   - 2.10 [Use raise ... from to Preserve Exception Causality](#210-use-raise-from-to-preserve-exception-causality)
+   - 2.11 [Use with / async with for Resource Lifetimes](#211-use-with-async-with-for-resource-lifetimes)
+   - 2.12 [Validate Input at System Boundaries](#212-validate-input-at-system-boundaries)
 3. [Type Safety](#3-type-safety) — **MEDIUM-HIGH**
-   - 3.1 [Avoid Any Annotations](#31-avoid-any-annotations)
-   - 3.2 [Fix Type Definitions Instead of cast()](#32-fix-type-definitions-instead-of-cast)
-   - 3.3 [Fix Type Errors, Don't Ignore Them](#33-fix-type-errors-dont-ignore-them)
-   - 3.4 [Narrow Type Signatures to Runtime Reality](#34-narrow-type-signatures-to-runtime-reality)
-   - 3.5 [Remove Redundant `| None` When Values Are Guaranteed](#35-remove-redundant-none-when-values-are-guaranteed)
-   - 3.6 [Trust the Type Checker — Remove Redundant Runtime Checks](#36-trust-the-type-checker-remove-redundant-runtime-checks)
-   - 3.7 [Use Literal Types for Fixed String Sets](#37-use-literal-types-for-fixed-string-sets)
-   - 3.8 [Use TYPE_CHECKING for Optional Dependencies](#38-use-typechecking-for-optional-dependencies)
-   - 3.9 [Use TypedDict or Dataclass Instead of dict[str, Any]](#39-use-typeddict-or-dataclass-instead-of-dictstr-any)
-   - 3.10 [Use isinstance() for Type Checking, Not hasattr/getattr](#310-use-isinstance-for-type-checking-not-hasattrgetattr)
+   - 3.1 [Accept Sequence and Mapping for Read-Only Parameters](#31-accept-sequence-and-mapping-for-read-only-parameters)
+   - 3.2 [Avoid Any Annotations](#32-avoid-any-annotations)
+   - 3.3 [Fix Type Definitions Instead of cast()](#33-fix-type-definitions-instead-of-cast)
+   - 3.4 [Fix Type Errors, Don't Ignore Them](#34-fix-type-errors-dont-ignore-them)
+   - 3.5 [Narrow Type Signatures to Runtime Reality](#35-narrow-type-signatures-to-runtime-reality)
+   - 3.6 [Remove Redundant `| None` When Values Are Guaranteed](#36-remove-redundant-none-when-values-are-guaranteed)
+   - 3.7 [Trust the Type Checker — Remove Redundant Runtime Checks](#37-trust-the-type-checker-remove-redundant-runtime-checks)
+   - 3.8 [Use Literal Types for Fixed String Sets](#38-use-literal-types-for-fixed-string-sets)
+   - 3.9 [Use Modern Typing Syntax](#39-use-modern-typing-syntax)
+   - 3.10 [Use TYPE_CHECKING for Optional Dependencies](#310-use-typechecking-for-optional-dependencies)
+   - 3.11 [Use TypedDict or Dataclass Instead of dict[str, Any]](#311-use-typeddict-or-dataclass-instead-of-dictstr-any)
+   - 3.12 [Use isinstance() for Type Checking, Not hasattr/getattr](#312-use-isinstance-for-type-checking-not-hasattrgetattr)
 4. [API Design](#4-api-design) — **MEDIUM**
    - 4.1 [Avoid Boolean Flag Parameters in Public APIs](#41-avoid-boolean-flag-parameters-in-public-apis)
    - 4.2 [Choose the Simplest Namespace That Matches Ownership and Polymorphism](#42-choose-the-simplest-namespace-that-matches-ownership-and-polymorphism)
@@ -94,10 +98,11 @@ Python software engineering guidelines for agent consumption. 70 rules across 8 
 8. [Imports & Structure](#8-imports-structure) — **LOW**
    - 8.1 [Handle Optional Dependencies Explicitly](#81-handle-optional-dependencies-explicitly)
    - 8.2 [Keep Modules Cheap to Import](#82-keep-modules-cheap-to-import)
-   - 8.3 [No Duplicate Imports](#83-no-duplicate-imports)
-   - 8.4 [Place Imports at the Top of the File](#84-place-imports-at-the-top-of-the-file)
-   - 8.5 [Remove Unused Imports](#85-remove-unused-imports)
-   - 8.6 [Scope Helpers and Constants to Their Usage Site](#86-scope-helpers-and-constants-to-their-usage-site)
+   - 8.3 [Keep Package __init__ Imports Light](#83-keep-package-init-imports-light)
+   - 8.4 [No Duplicate Imports](#84-no-duplicate-imports)
+   - 8.5 [Place Imports at the Top of the File](#85-place-imports-at-the-top-of-the-file)
+   - 8.6 [Remove Unused Imports](#86-remove-unused-imports)
+   - 8.7 [Scope Helpers and Constants to Their Usage Site](#87-scope-helpers-and-constants-to-their-usage-site)
 
 ---
 
@@ -207,7 +212,9 @@ class EditMessageComposer:
         return Frame(extra=None, actions=EditActions())
 ```
 
-Each class declares the fields its variant actually needs. Impossible combinations are unrepresentable. When variants genuinely share logic, extract helpers or a small base class that holds the common interface only — not a mega-class that mode-switches internally.
+Each class declares the fields its variant actually needs. Impossible combinations are unrepresentable.
+
+**When variants genuinely share logic:** Extract helpers or a small base class that holds the common interface only — not a mega-class that mode-switches internally.
 
 **Related:** this rule is about splitting behavior across classes. `data-discriminated-unions` is the same idea at the data-shape level — tag the variants so consumers can narrow with `match`/`if isinstance`. Reach for either when optional fields start accumulating to encode modes.
 
@@ -351,11 +358,13 @@ class DebouncedAction:
 
 A closure returning `(trigger, clear)` is the right alternative when no one needs to inspect, type, serialize, or mock the state — the surface is just the two callables. Module-level globals deserve more pushback than either; prefer dependency injection.
 
+**Scope is a dial, not a mandate:** a small class where every method genuinely participates in the state's lifecycle isn't "too wide" — the smell is methods that *could* touch state they have no business with. Don't shrink scope at the cost of a contorted interface.
+
 ### 1.6 Never Use Mutable Default Arguments
 
 **Impact: CRITICAL (prevents shared-state bugs across calls and instances)**
 
-A default argument is evaluated **once**, when the `def` statement runs — not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore shared across every call that doesn't override it. Appending to the "default" list on one call mutates the default for every subsequent call. The same trap applies to dataclass and Pydantic field defaults. Always use `None` + body construction, or `default_factory`.
+A default argument is evaluated **once**, when the `def` statement runs — not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore shared across every call that doesn't override it: appending to the "default" list on one call mutates the default for every subsequent call. Use `None` + body construction, or a factory. The same *syntax* behaves three different ways — plain functions share the one object (the bug), `@dataclass` refuses it outright, and Pydantic v2 deep-copies it per instance — so the fix differs by context; see below.
 
 **Incorrect (the `[]` is one object, reused across calls):**
 
@@ -392,7 +401,7 @@ class Config(BaseModel):
     tags: list[str] = Field(default_factory=list)
 ```
 
-`@dataclass` rejects bare mutable defaults with `ValueError`. Pydantic v2 happens to deep-copy the default for each instance, but `Field(default_factory=list)` makes the intent explicit and survives version changes. Safe to use directly as defaults: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — anything that can't be mutated.
+**Scope — same syntax, three behaviors:** a plain `def` shares the single default object — the bug this rule exists for. `@dataclass` *rejects* bare mutable defaults with `ValueError`, steering you to `default_factory`. Pydantic v2 is not the same trap: it deep-copies unhashable mutable defaults per instance, so `tags: list[str] = []` on a model works — `Field(default_factory=list)` stays preferable for clarity and for hashable mutable defaults, and `Field(default_factory=list, validate_default=True)` when the generated default itself must be validated (default validation is opt-in, separate from the factory) — but none of that is a correctness fix there; don't flag model defaults as the function-argument bug. Safe to use directly as defaults anywhere: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. Transitive immutability, not surface type, is the property that matters.
 
 ### 1.7 Phase Related Optional Fields Into Nested Structs
 
@@ -446,6 +455,8 @@ class UserProfile:
 
 Consumers check one optional: `if profile.billing is not None: use profile.billing.card_last4`. Every billing field is guaranteed present when `billing` is. The type system enforces the co-occurrence that was always true in practice. Rule of thumb: three or more optionals that always set/unset together belong in a nested struct.
 
+**Scope:** Keep fields independent when they do not actually appear and disappear together; nesting unrelated optionals only moves the checks.
+
 ### 1.8 Pick a Mutation Contract
 
 **Impact: HIGH (prevents ambiguous caller expectations)**
@@ -486,9 +497,42 @@ def with_pending_action(state: AppState, action: str) -> AppState:
 - `apply_*`, `set_*`, `update_*_inplace` — mutate, return `None`
 - `with_*`, `update_*`, `derive_*` — return a new value, leave input alone
 
+**When a mutator may return:** mutation APIs that return *new information* are fine — `dict.pop` returns the removed value, `setdefault` returns the present one; the returned value carries something the caller didn't have. Deliberately fluent builders that mutate and return `self` (`query.where(...).limit(...)`) are a third valid contract when the chaining intent is explicit and consistent across the API. The trap this rule targets is returning the mutated object *as if it were a fresh value* — ambiguity, not the mere existence of a return, is the problem.
+
 The contract should be obvious from the name and signature without reading the body.
 
-### 1.9 Use Discriminated Unions Over Optional Bags
+### 1.9 Remember bool Is an int Subtype
+
+**Impact: MEDIUM (keeps True out of numeric validation, keys, and arithmetic)**
+
+`bool` subclasses `int`: `isinstance(True, int)` is `True`, `True == 1`, and `hash(True) == hash(1)`. Any numeric validation, dict key, or arithmetic that should exclude booleans must reject `bool` explicitly — and the check must come *first*, because the `int` check accepts booleans. This bites hardest on deserialized input, where JSON `true` arrives as Python `True` and sails through an `isinstance(..., int)` gate.
+
+**Incorrect (`True` passes as a valid count):**
+
+```python
+def set_page_size(value: object) -> int:
+    if not isinstance(value, int) or value < 1:
+        raise ValueError(f"page size must be a positive integer, got {value!r}")
+    return value
+
+set_page_size(True)   # returns True — later arithmetic treats it as 1
+{1: "a", True: "b"}   # one entry: True collides with key 1
+```
+
+**Correct (reject bool before accepting int):**
+
+```python
+def set_page_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"page size must be a positive integer, got {value!r}")
+    return value
+```
+
+Static checkers won't flag any of this — `bool` is a valid `int` to them by design. The discipline lives in runtime validation. Coercing validators may convert rather than reject; use a strict integer type at the model boundary when `true`-as-`1` must not slip through.
+
+**When the subtyping is the feature:** `sum(flags)` counting `True`s, boolean indexing, and arithmetic on comparison results are idiomatic uses of the same relationship — reject bools at *validation* boundaries; don't blanket-ban them from arithmetic.
+
+### 1.10 Use Discriminated Unions Over Optional Bags
 
 **Impact: MEDIUM (tags variants explicitly in new designs; retrofit is expensive)**
 
@@ -546,7 +590,9 @@ Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on
 
 **Related:** `data-explicit-variants` applies the same idea at the behavior level — split a mode-flag class into one class per mode. Use discriminated unions when the variants are data; use explicit variants when the variants have meaningfully different methods.
 
-### 1.10 Use Timezone-Aware Datetimes at Boundaries
+**When a bag is fine:** two or three optionals whose presence genuinely varies independently aren't variants in disguise — tagging them adds machinery without collapsing any impossible states. Reach for the union when field combinations are constrained; keep the flat model when they truly aren't.
+
+### 1.11 Use Timezone-Aware Datetimes at Boundaries
 
 **Impact: HIGH (prevents off-by-hours bugs across timezones, daylight saving, and storage)**
 
@@ -564,23 +610,25 @@ def stamp() -> datetime:
 **Correct (UTC-aware at the boundary; local zone only for display):**
 
 ```python
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 def stamp() -> datetime:
-    return datetime.now(timezone.utc)     # aware; round-trips through isoformat() cleanly
+    return datetime.now(UTC)              # aware; round-trips through isoformat() cleanly
 
-stored = datetime.now(timezone.utc)
+stored = datetime.now(UTC)
 display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # named zone, DST handled
 ```
 
-`zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
+`UTC` (3.11+) is an alias for `timezone.utc` — either spelling is fine; match the codebase. `zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
 
 **Parsing input:** if callers can send naive datetimes, decide once whether to reject or assume a fixed zone. Never *silently* treat naive as UTC. For Pydantic v2, `AwareDatetime` rejects naive values at the model boundary. For PostgreSQL, use `TIMESTAMPTZ`; for SQLite/MySQL, store ISO-8601 strings with `+00:00` or epoch milliseconds.
 
-Naive is acceptable only inside a tight block where every value is naive and the timezone is documented in scope, or for pure date arithmetic (use `date`, not `datetime`). If the value outlives the function it's created in, it should be aware.
+**When naive datetimes are acceptable:** Keep them inside a tight block where every value is naive and the timezone is documented in scope, or use `date` for pure date arithmetic. If the value outlives the function it's created in, it should be aware.
 
-### 1.11 Use a Sentinel Object When None Is a Real Domain Value
+This rule is about *instants*. Civil concepts need a different shape: all-day values are a `date`; recurring local schedules and future events pinned to a wall clock are a local time plus a named zone, where converting to UTC too early destroys the DST-following semantics the domain actually wants. Ask what the value represents before normalizing it.
+
+### 1.12 Use a Sentinel Object When None Is a Real Domain Value
 
 **Impact: MEDIUM (distinguishes "no value passed" from "None passed deliberately")**
 
@@ -621,13 +669,15 @@ update_user("u1", nickname="bob")    # nickname set to "bob"
 
 Pydantic's PATCH pattern uses the same idea — `Field(default=UNSET)` + filtering `{k: v for k, v in model_dump().items() if v is not UNSET}` gives you "omitted field" vs. "explicit null."
 
-A private `_SENTINEL = object()` is fine for tiny internal cases — PEP 661 itself uses that idiom. Prefer a named sentinel class (as above) when the sentinel appears in signatures, reprs, logs, or tracebacks, since the `__repr__` makes debugging easier. PEP 661 proposes a standard `sentinel(...)` helper, but it is still Draft and has not shipped in the `typing` module; do not claim `typing.Sentinel` exists. And don't reach for sentinels when `None` already means "absent" — two-state `Optional` doesn't need them.
+A private `_SENTINEL = object()` is fine for tiny internal cases — PEP 661 itself uses that idiom. Prefer a named sentinel class (as above) when the sentinel appears in signatures, reprs, logs, or tracebacks, since the `__repr__` makes debugging easier. PEP 661 proposes a standard `sentinel(...)` helper, but it is still Draft and has not shipped in the `typing` module; do not claim `typing.Sentinel` exists.
+
+**When not to use a sentinel:** Don't reach for one when `None` already means "absent" — two-state `Optional` doesn't need it.
 
 ## 2. Error Handling
 
 **Impact: MEDIUM-HIGH**
 
-Specific exceptions, context managers for resources, preserved cancellation semantics. Sloppy exceptions hide bugs; narrow catches localize them.
+Specific exceptions, context managers for resources, honest exception hierarchies. Sloppy exceptions hide bugs; narrow catches localize them.
 
 ### 2.1 Catch Specific Exception Types
 
@@ -657,7 +707,9 @@ def fetch_user(user_id: str) -> User | None:
     return parse_user(response.json())  # bugs here propagate
 ```
 
-Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`. A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
+Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`.
+
+**When a broad catch is acceptable:** A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
 
 ```python
 def handle_request(req: Request) -> Response:
@@ -668,11 +720,44 @@ def handle_request(req: Request) -> Response:
         raise
 ```
 
-**Cancellation semantics (asyncio / anyio):** On Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception`. So `except Exception:` is cancellation-safe — do not flag it as "swallowing cancellation." Only `except BaseException:` (or bare `except:`) catches cancellation. If you do catch `BaseException` or `anyio.get_cancelled_exc_class()`, re-raise. Wrap must-complete cleanup in `asyncio.shield()` — under cancellation, `finally:` blocks race against the cancellation itself.
+**Cancellation (asyncio):** on Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` — so `except Exception:` is cancellation-safe; do not flag it as "swallowing cancellation." If a bare `except:` or `except BaseException:` does intercept cancellation, clean up and re-raise. The full asyncio semantics — `gather(return_exceptions=True)` results, cleanup under a pending cancellation, framework caveats — live in python-async-best-practices' `async-preserve-cancellation`.
 
 For meaningful handling, create domain-specific exception types (`ToolTimeoutError(ToolExecutionError)`, etc.) so handlers match on failure mode rather than error text.
 
-### 2.2 Consolidate try/except Blocks with the Same Handler
+### 2.2 Classify Errors by Type, Not Message Text
+
+**Impact: MEDIUM (wording is not a contract; types and codes are)**
+
+Branching on exception message substrings turns prose into a control-flow API. Messages change between library versions, vary by locale, and collide with legitimate content — an error that merely *mentions* "timeout" gets retried as if it were one. Exception types, status codes, and structured attributes are the contract; match on those.
+
+**Incorrect (substring sniffing):**
+
+```python
+TRANSIENT_MARKERS = ("timeout", "connection reset", "temporarily unavailable")
+
+def is_retryable(e: Exception) -> bool:
+    return any(marker in str(e).lower() for marker in TRANSIENT_MARKERS)
+    # "invalid config: timeout must be positive" → retried forever
+```
+
+**Correct (types and status codes):**
+
+```python
+RETRYABLE_STATUS = frozenset({429, 502, 503, 504})
+
+def is_retryable(e: Exception) -> bool:
+    if isinstance(e, (TimeoutError, ConnectionError)):
+        return True
+    if isinstance(e, HTTPStatusError):
+        return e.response.status_code in RETRYABLE_STATUS
+    return False
+```
+
+The classifier now survives library upgrades and can't false-positive on message content.
+
+**When a library gives you nothing but a message:** isolate the string match in one named function with a comment linking the upstream issue asking for typed errors — one quarantined hack beats substring checks scattered through handlers. Related: `error-specific-exceptions` is the same principle at the `except` clause; this rule covers classification logic that receives an already-caught exception.
+
+### 2.3 Consolidate try/except Blocks with the Same Handler
 
 **Impact: LOW-MEDIUM (reduces duplication and simplifies control flow)**
 
@@ -718,11 +803,14 @@ def load_config(path: Path) -> Config | None:
 
 One block, one handler, one place to change. The caller sees the same behavior; the implementation is simpler.
 
+**Watch the scope you merge:** a single block makes every listed exception recoverable across *every* operation inside it. If a helper deep in one stage unexpectedly raises an exception type meant for a different stage, the merged handler converts a genuine defect into "config load failed." Merge only operations whose failures share one meaning and one recovery; when stages need distinct diagnostics but share the *policy*, deduplicate the handler body instead of widening the protected region — a small `_config_warning(path, stage, error)` helper called from three narrow blocks keeps stage attribution without three divergent handlers.
+
 **When to keep blocks separate:**
 
 - Different exceptions need **different** handling (log-and-return vs. retry vs. re-raise)
 - Intermediate values matter for the handler (you want the partial result when the second step fails)
 - The blocks are far apart in the function (folding them together would nest too much)
+- A listed exception type could plausibly escape a *different* stage than intended (broad types like `ValueError` or `OSError`) — merging misattributes it
 
 **Use `contextlib.suppress` for trivial "ignore the error" cases:**
 
@@ -736,7 +824,7 @@ def try_cleanup(path: Path) -> None:
 
 Cleaner than a full try/except for the "best effort, doesn't matter if it fails" pattern.
 
-### 2.3 Inherit New Exceptions from Existing Base Exceptions
+### 2.4 Inherit New Exceptions from Existing Base Exceptions
 
 **Impact: MEDIUM (preserves backward compatibility for callers)**
 
@@ -798,7 +886,7 @@ Callers can catch at whichever level of specificity they need. Adding new subtyp
 
 **Use `__init_subclass__` or explicit checks** if you need to prevent direct instantiation of the base — keep the type system as the contract enforcement.
 
-### 2.4 Preserve Tracebacks When Logging Exceptions
+### 2.5 Preserve Tracebacks When Logging Exceptions
 
 **Impact: MEDIUM (keeps diagnostics intact when recovering from failures)**
 
@@ -837,18 +925,18 @@ logger.error("task %r failed", task_id, exc_info=exc)
 - You're re-raising (`raise` or `raise NewError(...) from e`) at the same boundary. The outer handler logs once; duplicating here produces two stacks for one failure.
 - The exception is expected and recovery is routine (e.g., cache miss). A `logger.debug` or no log at all is often right.
 
-### 2.5 Trust Validated State Within the Same Trust Domain
+### 2.6 Trust Validated State Within the Same Trust Domain
 
 **Impact: MEDIUM (removes clutter without losing real safety)**
 
-Once a value has been validated *and the validated object is immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation.
+Once a value has been validated *and the validated object is transitively immutable, locally constructed, and stays in the same trust domain*, internal helpers can skip re-checking it. The cousin of `types-trust-the-checker`: same principle, but state requires more care because state can change after validation.
 
 **Incorrect (re-checking validated immutable state in the same module):**
 
 ```python
 class ValidatedOrder(BaseModel):
     model_config = {"frozen": True}
-    items: list[Item]
+    items: tuple[Item, ...]   # immutable graph (Item is frozen too) — frozen=True alone only stops field reassignment
     total: int
 
     @model_validator(mode="after")
@@ -877,11 +965,11 @@ def fulfill_order(order: ValidatedOrder) -> None:
         process(item)
 ```
 
-**Keep the check when any of these fail:** (1) object is mutable, (2) constructed outside this process (rehydrated from cache, queue, DB), (3) an untyped or plugin caller could produce a bad instance, (4) the object has been exposed to code that might have mutated it. Rehydration is the most common miss — `ValidatedOrder.model_validate_json(...)` freshly out of the validator is fine; the same type pulled from a cache with no re-validation is not.
+**Keep the check when any of these fail:** (1) the object graph is mutable *anywhere* — `frozen=True` prevents field reassignment, not mutation inside a `list` field or of the `Item`s themselves, (2) constructed outside this process (rehydrated from cache, queue, DB), (3) an untyped or plugin caller could produce a bad instance, (4) the object has been exposed to code that might have mutated it. Rehydration is the most common miss — `ValidatedOrder.model_validate_json(...)` freshly out of the validator is fine; the same type pulled from a cache with no re-validation is not. "Was validated once" is not "remains valid": trust an invariant only while every operation able to break it stays controlled.
 
 When you do trust the invariant, a single `assert order.items, "validator guarantees non-empty"` at the entry point documents the reasoning without sprinkling defensive `if` chains through the body.
 
-### 2.6 Use !r Format for Identifiers in Error Messages
+### 2.7 Use !r Format for Identifiers in Error Messages
 
 **Impact: LOW (produces consistent, unambiguous messages)**
 
@@ -920,7 +1008,7 @@ raise KeyError(f"unknown key {key!r} in {registry_name!r}")
 
 **When backticks are preferable:** some codebases use Markdown-style backticks for user-facing messages (CLI output, log lines humans read). Pick one convention per project and stick to it. `!r` is usually right for Python exception messages; backticks are usually right for log strings rendered in docs or notebooks.
 
-### 2.7 Use assert Only for Debug-Only Internal Invariants
+### 2.8 Use assert Only for Debug-Only Internal Invariants
 
 **Impact: MEDIUM (`-O` strips asserts; use for debug-only invariants, not runtime contracts)**
 
@@ -953,9 +1041,11 @@ def process_step(step: Step) -> Result:
     assert False, f"unhandled Step variant: {step!r}"  # debug-only
 ```
 
-If the input crosses a trust boundary (user input, external API, deserialized data), always use a real exception — `AssertionError` is a poor signal at a system boundary even when it does fire. For exhaustiveness checks specifically, `typing.assert_never` is sharper than `assert False` (see `error-assert-never-exhaustiveness`). Rule of thumb: if you can't articulate why losing the check under `-O` is acceptable, it shouldn't be an `assert`.
+If the input crosses a trust boundary (user input, external API, deserialized data), always use a real exception — `AssertionError` is a poor signal at a system boundary even when it does fire. For exhaustiveness checks specifically, `typing.assert_never` is sharper than `assert False` (see `error-assert-never-exhaustiveness`).
 
-### 2.8 Use assert_never for Exhaustiveness Checks
+**When `assert` is acceptable:** Use it only when losing the check under `-O` is acceptable because the condition is a debug-only internal invariant.
+
+### 2.9 Use assert_never for Exhaustiveness Checks
 
 **Impact: MEDIUM (turns "missing variant" into a type-check error)**
 
@@ -989,7 +1079,9 @@ def process_step(step: Step) -> Result:
 
 When `Step` becomes `InitStep | RunStep | DoneStep | PausedStep`, the checker reports that `step` is `PausedStep` at the `assert_never` call. Use it for closed sums: `Literal` unions, sealed dataclass hierarchies, discriminated unions, enum dispatch. On Python <3.11, import from `typing_extensions` — semantics are identical and both mypy and pyright recognize either source.
 
-### 2.9 Use raise ... from to Preserve Exception Causality
+**When the union is open** — plugin-provided types, forward-compatible protocol messages — exhaustiveness is the wrong goal: a default branch that handles unknown variants gracefully *is* the design, and `assert_never` would turn every extension into a type error.
+
+### 2.10 Use raise ... from to Preserve Exception Causality
 
 **Impact: LOW-MEDIUM (explicit `__cause__` chain vs implicit `__context__`; often invisible to end callers)**
 
@@ -1039,9 +1131,11 @@ The user-facing error is clean (`ValueError: invalid timestamp: 'abc'`) without 
 - `raise NewError()` inside `except` — implicit chain; `__context__` set
 - `raise NewError() from None` — suppress the original context entirely
 
-Default to `from original` when translating between exception types. Reach for `from None` when the internal cause is noise to the caller.
+Default to `from original` when translating between exception types.
 
-### 2.10 Use with / async with for Resource Lifetimes
+**When to suppress context:** Reach for `from None` when the internal cause is noise to the caller.
+
+### 2.11 Use with / async with for Resource Lifetimes
 
 **Impact: HIGH (deterministic cleanup even on exceptions)**
 
@@ -1066,20 +1160,27 @@ def write_report(path: Path, rows: list[Row]) -> None:
             f.write(format_row(row))
 ```
 
-**Async clients use `async with`:**
+**Async clients use `async with`, scoped to the client's real lifetime:**
 
 ```python
-async def fetch_user(user_id: str) -> User:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"/users/{user_id}")
-        return User.model_validate_json(response.content)
+async def sync_users(user_ids: list[str]) -> list[User]:
+    async with httpx.AsyncClient() as client:   # one client for the whole batch
+        return [await fetch_user(client, uid) for uid in user_ids]
+
+async def fetch_user(client: httpx.AsyncClient, user_id: str) -> User:
+    response = await client.get(f"/users/{user_id}")
+    return User.model_validate_json(response.content)
 ```
+
+Scope the `async with` to the real lifetime of the resource: a client per request discards the connection pool it exists to provide; one client per batch (or per application, closed at shutdown) amortizes it.
 
 For multiple resources acquired together, `contextlib.ExitStack` closes all of them in reverse order even if one acquisition raises. Write your own with `@contextlib.contextmanager` (or `@asynccontextmanager`) when a resource isn't already a context manager — `yield` the resource inside a `try` / `finally`.
 
 If you're writing `try` / `finally` to call `close()`, `release()`, or `disconnect()`, you almost certainly want `with` instead.
 
-### 2.11 Validate Input at System Boundaries
+**When manual lifetime is the design:** a resource that must outlive the acquiring scope — a client returned from a factory, a connection stored on a service — can't be `with`-scoped at acquisition. Ownership transfers instead, and the *owner* provides the deterministic close (`close()`/`aclose()` in its own shutdown path). The rule's target is locally-scoped acquire-use-release, where `with` is strictly better.
+
+### 2.12 Validate Input at System Boundaries
 
 **Impact: MEDIUM (fails fast and prevents bad data from spreading)**
 
@@ -1140,13 +1241,48 @@ One validation point. Internal code takes `OrderId` (a branded `NewType`) and tr
 
 **Fail fast:** validate before expensive operations. Don't read a 10MB file, parse it, and *then* reject it for missing a required field — check the field first.
 
+**When layered validation is deliberate:** database constraints, domain-object constructors, and security-sensitive operations may enforce invariants again by design — defense in depth at a real trust or representation transition is not the redundancy this rule targets. The target is reflexive re-checking of already-validated values *inside* one trust domain.
+
 ## 3. Type Safety
 
 **Impact: MEDIUM-HIGH**
 
 Precise types catch bugs at type-check time. Fix type errors rather than ignore them; no `Any` drift in new code.
 
-### 3.1 Avoid Any Annotations
+### 3.1 Accept Sequence and Mapping for Read-Only Parameters
+
+**Impact: MEDIUM (sidesteps invariance errors and documents non-mutation)**
+
+`list` and `dict` are invariant: a `list[Button]` is *not* a `list[Widget]` even when `Button` subclasses `Widget`, because a function taking `list[Widget]` could legally append a `Slider` into it. Annotating a read-only parameter as `list[T]` therefore rejects callers holding lists of subtypes — the checker even suggests the fix ("consider using Sequence instead, which is covariant"). The abstract types also document intent: `Sequence` promises the function won't mutate.
+
+**Incorrect (invariant parameter rejects valid callers):**
+
+```python
+def render_all(widgets: list[Widget]) -> str:
+    return "\n".join(w.render() for w in widgets)
+
+buttons: list[Button] = load_buttons()
+render_all(buttons)  # error: Argument 1 has incompatible type "list[Button]"; expected "list[Widget]"
+```
+
+**Correct (covariant read-only view):**
+
+```python
+from collections.abc import Mapping, Sequence
+
+def render_all(widgets: Sequence[Widget]) -> str:
+    return "\n".join(w.render() for w in widgets)
+
+def apply_labels(labels: Mapping[str, str]) -> None: ...
+```
+
+`render_all(buttons)` now type-checks, and the signature guarantees the input comes back unmodified.
+
+**Choosing the parameter type:** `Iterable[T]` when one pass is enough (also admits generators), `Sequence[T]` when you need `len()` / indexing / re-iteration, `Mapping[K, V]` for read-only dicts.
+
+**Keep `list[T]` / `dict[K, V]` when the function genuinely mutates:** then the concrete type is the honest one. Return types go the other way: return the concrete type you actually built (`list[T]`), which gives callers the most capability.
+
+### 3.2 Avoid Any Annotations
 
 **Impact: MEDIUM (narrows types in new code; retrofitting existing `Any` is churn)**
 
@@ -1198,7 +1334,9 @@ Generic, not unchecked.
 
 **When `Any` is genuinely unavoidable** (interop with dynamically typed libraries, some JSON boundaries), restrict its scope to one line, narrow to a concrete type immediately, and document the invariant in a comment.
 
-### 3.2 Fix Type Definitions Instead of cast()
+**A clean checker run doesn't mean typed:** dynamically-typed factories (e.g. `boto3.client(...)`) return `Any`, and everything derived from them stays `Any` without a single diagnostic. Spot-check important boundary values with `reveal_type()` or editor hover, and install stub packages for the SDKs you depend on, so `Any` at a boundary is a visible, deliberate choice rather than silent drift.
+
+### 3.3 Fix Type Definitions Instead of cast()
 
 **Impact: MEDIUM (keeps source type definitions honest)**
 
@@ -1219,24 +1357,34 @@ def get_timeout() -> int:
 
 The real issue: `load_config` returns `dict[str, object]` because `json.loads` does. But this project's config has a known shape — fix the source type.
 
-**Correct (declare the real structure):**
+**Correct (declare the real structure; narrow where the runtime evidence exists):**
 
 ```python
-from typing import TypedDict
+from typing import TypedDict, cast
 
 class Config(TypedDict):
     timeout: int
     retries: int
 
 def load_config() -> Config:
-    return json.loads(CONFIG_PATH.read_text())  # validate or cast here, once
+    data = json.loads(CONFIG_PATH.read_text())
+    if not (
+        isinstance(data, dict)
+        and _is_int(data.get("timeout"))
+        and _is_int(data.get("retries"))
+    ):
+        raise ValueError(f"malformed config at {CONFIG_PATH}")
+    return cast(Config, data)   # narrowed by the checks above — once, at the parse boundary
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)  # bool is an int subtype
 
 def get_timeout() -> int:
     config = load_config()
     return config["timeout"]  # known to be int from Config
 ```
 
-Now every downstream consumer benefits from the typed shape.
+Now every downstream consumer benefits from the typed shape — and the annotation is backed by real checks. Annotating `json.loads(...)` as `Config` *without* validating merely relocates the unproven assertion from the call site to the signature; `json.loads` returns dynamically-typed data, so the checker accepts the lie silently. With a validation library, one adapter/model call at this boundary replaces the hand-rolled checks.
 
 **When `cast()` is the right tool:** when runtime logic narrows beyond what the checker can prove — e.g., after a literal tag check, a custom predicate, or a known invariant enforced elsewhere.
 
@@ -1252,9 +1400,11 @@ def handle_success(result: ApiResponse) -> str:
 
 Even then, `isinstance` or a `TypeGuard` function is usually cleaner. Reserve `cast` for cases where those don't fit.
 
+A second legitimate case: third-party stubs that are verifiably wrong. Perform the real runtime operation first, then `cast` the result to the documented type at that one boundary — with a comment naming the stub defect — instead of spreading ignores through every consumer.
+
 **Rule of thumb:** before reaching for `cast`, ask whether the source type should be narrower. 8 times out of 10, yes.
 
-### 3.3 Fix Type Errors, Don't Ignore Them
+### 3.4 Fix Type Errors, Don't Ignore Them
 
 **Impact: HIGH (prevents masked errors from compounding)**
 
@@ -1294,6 +1444,8 @@ adapter = adapters[cls]  # type: ignore[assignment]
 
 A reviewer should be able to read the comment and confirm the suppression is justified without re-deriving the reasoning.
 
+Suppressions that *fabricate* types are worse than ignores: declaring members under `if TYPE_CHECKING:` that the runtime object doesn't have makes the checker vouch for attributes that will `AttributeError` in production. If an object structurally satisfies an interface the checker can't see, write a `Protocol` that tells the truth about what exists.
+
 **Escape hatches to prefer before ignoring:**
 - `cast(T, value)` with a comment (see `types-fix-types-not-cast` for when it's appropriate)
 - `assert isinstance(x, T)` — runtime check plus narrowing
@@ -1302,7 +1454,7 @@ A reviewer should be able to read the comment and confirm the suppression is jus
 
 Reach for `# type: ignore` last, not first.
 
-### 3.4 Narrow Type Signatures to Runtime Reality
+### 3.5 Narrow Type Signatures to Runtime Reality
 
 **Impact: MEDIUM (eliminates unreachable branches and false permissiveness)**
 
@@ -1353,7 +1505,7 @@ def render_tool_result(part: ToolPart) -> str:
 
 `assert_never` ensures that if `ToolPart` gains a new variant, every `match` on it is re-examined.
 
-### 3.5 Remove Redundant `| None` When Values Are Guaranteed
+### 3.6 Remove Redundant `| None` When Values Are Guaranteed
 
 **Impact: LOW-MEDIUM (eliminates false uncertainty in the type signature)**
 
@@ -1405,7 +1557,7 @@ class Config(TypedDict):
 
 **Heuristic:** if every consumer writes `if x is not None:` before using the value, either `None` is never really set (remove `| None`) or you should have a different sentinel (a default, a distinct variant).
 
-### 3.6 Trust the Type Checker — Remove Redundant Runtime Checks
+### 3.7 Trust the Type Checker — Remove Redundant Runtime Checks
 
 **Impact: LOW-MEDIUM (removes noise and signals confidence in the types)**
 
@@ -1452,7 +1604,7 @@ def process_request(raw: str) -> Response:
 
 Inside your own code, let the types do the work.
 
-### 3.7 Use Literal Types for Fixed String Sets
+### 3.8 Use Literal Types for Fixed String Sets
 
 **Impact: MEDIUM (catches invalid strings at type-check time)**
 
@@ -1501,7 +1653,41 @@ If a new level is added to the `Literal` type without updating this `match`, che
 
 **When to use plain `str`:** free-form user input, message bodies, URLs, any field that isn't a finite enumeration.
 
-### 3.8 Use TYPE_CHECKING for Optional Dependencies
+### 3.9 Use Modern Typing Syntax
+
+**Impact: MEDIUM (one spelling per concept; readers and tools stop translating)**
+
+On 3.11+, `Optional[X]`, `Union[X, Y]`, and `typing.List` / `Dict` / `Tuple` are legacy spellings. The modern forms — `X | None`, `X | Y`, and builtin generics `list[str]` / `dict[str, int]` — mean the same thing with fewer imports and one consistent style. Mixing both styles in one module forces readers to translate between them and invites duplicate imports.
+
+**Incorrect (legacy spellings on a modern baseline):**
+
+```python
+from typing import Dict, List, Optional, Union
+
+def merge_tags(
+    base: List[str],
+    extra: Optional[List[str]] = None,
+) -> Dict[str, Union[int, str]]:
+    ...
+```
+
+**Correct (builtin generics and `|` unions):**
+
+```python
+def merge_tags(
+    base: list[str],
+    extra: list[str] | None = None,
+) -> dict[str, int | str]:
+    ...
+```
+
+`ruff`'s `UP` (pyupgrade) rules rewrite these automatically — enable them so the style never regresses.
+
+**Version notes:** builtin generics are 3.9+ (PEP 585); `|` unions are 3.10+ (PEP 604). The `type X = ...` alias statement and `class Foo[T]:` generic syntax are 3.12+ (PEP 695) — on a 3.11 baseline, keep `TypeAlias` and `TypeVar` for those two jobs.
+
+**When editing a file that consistently uses the legacy style:** match it or convert the whole file — don't leave a mix.
+
+### 3.10 Use TYPE_CHECKING for Optional Dependencies
 
 **Impact: LOW-MEDIUM (preserves type hints without forcing the import)**
 
@@ -1548,6 +1734,8 @@ class AnthropicProvider:
 
 With `from __future__ import annotations`, all annotations are strings at runtime — so `anthropic.Client` in the signature doesn't need the import to resolve. The checker still resolves it during type-check because it sees the `TYPE_CHECKING` branch.
 
+**Exception — annotations consumed at runtime:** anything that *evaluates* annotations at runtime needs the name importable at runtime: Pydantic model fields, FastAPI/Typer signatures, any call to `typing.get_type_hints()`. Moving such an import under `TYPE_CHECKING` fails later with `NameError: name '...' is not defined` — raised where the framework resolves the annotation, far from the import you moved. Defer only imports whose annotations nothing inspects at runtime.
+
 **Pattern for optional-dep packages:**
 
 ```python
@@ -1562,7 +1750,7 @@ except ImportError as e:
 
 Combine the runtime guard (helpful error if the user hits a code path that needs the dep) with `TYPE_CHECKING` for the hints.
 
-### 3.9 Use TypedDict or Dataclass Instead of dict[str, Any]
+### 3.11 Use TypedDict or Dataclass Instead of dict[str, Any]
 
 **Impact: MEDIUM (structured alternative to `dict[str, Any]` when writing new code)**
 
@@ -1594,9 +1782,11 @@ def create_user(config: UserConfig) -> User:
     return User(name=config["name"].upper(), age=config.get("age", 0))
 ```
 
-For in-memory values with behavior and defaults, prefer a `dataclass`; when you also need runtime validation, `pydantic.BaseModel`. `dict[str, Any]` is the right answer only for genuinely unstructured data — log context, free-form metadata. If you know the fields, declare them.
+For in-memory values with behavior and defaults, prefer a `dataclass`; when you also need runtime validation, `pydantic.BaseModel`.
 
-### 3.10 Use isinstance() for Type Checking, Not hasattr/getattr
+**When `dict[str, Any]` is the right answer:** only for genuinely unstructured data — log context, free-form metadata. If you know the fields, declare them.
+
+### 3.12 Use isinstance() for Type Checking, Not hasattr/getattr
 
 **Impact: MEDIUM (enables proper type narrowing for the checker)**
 
@@ -1687,7 +1877,7 @@ export_report(rows, format="csv", compress=True)
 
 Adding a fourth format is a one-line change to the `Literal`; call sites read meaningfully. Use an `Enum` when modes carry behavior or constants (e.g. `CompressionLevel.BEST` with value `9`). Split into separate functions when bodies barely overlap and composition is orthogonal.
 
-A single keyword-only `bool` is still fine when the name clearly answers "what does `True` mean?" (`include_archived=True`, `strict=True`, `dry_run=True`) and the body is a small filter rather than two near-duplicate paths. Read call sites out loud: `export_report(rows, True, False)` fails; `export_report(rows, format="csv", compress=True)` passes.
+**When a boolean is fine:** A single keyword-only `bool` is acceptable when the name clearly answers "what does `True` mean?" (`include_archived=True`, `strict=True`, `dry_run=True`) and the body is a small filter rather than two near-duplicate paths. Read call sites out loud: `export_report(rows, True, False)` fails; `export_report(rows, format="csv", compress=True)` passes.
 
 ### 4.2 Choose the Simplest Namespace That Matches Ownership and Polymorphism
 
@@ -1725,7 +1915,9 @@ class User:
         self.last_modified = now()
 ```
 
-Use `@classmethod` for alternative constructors (`Event.from_json(raw)`); the method needs the class for subclass-friendly construction but not an instance. Use a `Protocol` when several unrelated types need to provide the same interface without a shared base. `@staticmethod` is the rarest tier — if there's no `self` and no `cls`, a module function is usually cleaner. Starting too coupled (everything on a class) is harder to undo than starting too loose (a free function you later move).
+Use `@classmethod` for alternative constructors (`Event.from_json(raw)`); the method needs the class for subclass-friendly construction but not an instance. Use a `Protocol` when several unrelated types need to provide the same interface without a shared base.
+
+**When module scope is right:** `@staticmethod` is the rarest tier — if there's no `self` and no `cls`, a module function is usually cleaner. Starting too coupled (everything on a class) is harder to undo than starting too loose (a free function you later move).
 
 ### 4.3 Don't Access Private Attributes
 
@@ -1760,7 +1952,7 @@ If `some_lib` doesn't expose what you need, open an issue or PR. Using `_private
 
 **Inside your own code:** same rule applies between modules. If `module_a` finds itself reaching into `module_b._helpers`, the helper probably shouldn't be private — or `module_a` shouldn't need it.
 
-**The exception:** testing your own internals. Unit tests for a class may legitimately assert on `_private` state. Even then, prefer testing through the public interface when feasible — tests that poke at internals are brittle to refactoring.
+**Exception:** Testing your own internals. Unit tests for a class may legitimately assert on `_private` state. Even then, prefer testing through the public interface when feasible — tests that poke at internals are brittle to refactoring.
 
 **Double underscore (`__name`) is stronger:** Python name-mangles `__name` to `_ClassName__name`, making accidental access even harder. Use it for attributes you're committed to keeping inaccessible.
 
@@ -1822,6 +2014,8 @@ class ToolCall:
 
 **Related:** `data-derive-dont-store` is the same idea at the field level — if one field is computable from another, compute it, don't store it.
 
+**Keep nesting that means something:** protocol envelopes, version boundaries, independently-evolving lifecycles, provenance wrappers, and genuine one-to-many cardinality are structure, not redundancy. The invariant this rule protects is *one authoritative source per fact* — not maximal flatness.
+
 ### 4.5 Keep Old Names as Deprecated Aliases
 
 **Impact: MEDIUM (enables gradual migration without breakage)**
@@ -1850,11 +2044,13 @@ def get_user(user_id: str) -> User:
 
 On older Pythons, call `warnings.warn("...", DeprecationWarning, stacklevel=2)` inside the alias body — same runtime effect, minus the static-checker signal.
 
-For renamed *parameters*, `@warnings.deprecated` doesn't apply — it decorates whole symbols. Accept the old keyword as a compatibility path with a sentinel default, forward to the new name, and emit `warnings.warn(..., DeprecationWarning, stacklevel=2)` when the old path is taken. Remove the alias in a later major version. Skip deprecation only when the name was never public (starts with `_`, not in `__all__`, not in docs).
+For renamed *parameters*, `@warnings.deprecated` doesn't apply — it decorates whole symbols. Accept the old keyword as a compatibility path with a sentinel default, forward to the new name, and emit `warnings.warn(..., DeprecationWarning, stacklevel=2)` when the old path is taken. Remove the alias in a later major version.
+
+**When to skip deprecation:** Skip deprecation only when the name was never public (starts with `_`, not in `__all__`, not in docs).
 
 ### 4.6 Order Required Fields Before Optional Fields
 
-**Impact: HIGH (Python enforces this at class-definition time)**
+**Impact: MEDIUM (Python enforces this at class-definition time)**
 
 Python's dataclass implementation requires fields without defaults to precede fields with defaults — trying to put an optional field before a required one is a `TypeError` at class-definition time. More importantly, the order communicates intent: required first, defaults last.
 
@@ -1997,9 +2193,11 @@ class Cache:
     def _entries(self) -> dict[str, object]: ...       # internal state access
 ```
 
-**Don't reach into `_private` from outside.** If you find yourself writing `obj._internal`, either (a) the attribute should be public and the owner should know, or (b) the design has a gap — add a public method instead. Reaching into `_private` couples you to implementation details that may change.
+Reaching into `_private` from outside is the sibling failure — couples you to details free to change; see `api-no-private-access`. If you find yourself writing `obj._internal`, either the attribute should be public and the owner should know, or the design has a gap — add a public method instead.
 
 **`__all__` is the contract:** `from mymodule import *` respects `__all__`. Tools like Sphinx and type checkers also use it to determine the public surface. Keep it minimal and accurate.
+
+**When not to underscore:** names that external machinery reaches *by string* — plugin entry points, `getattr`-dispatched handlers, ORM and serializer field names — are public contracts regardless of intent, and underscoring them breaks the dispatch. The convention earns its keep where the public/internal boundary carries compatibility weight (libraries, shared packages); in a leaf application module with one consumer, exhaustive underscoring is ceremony.
 
 ### 4.9 Use Keyword-Only Parameters for Optional Config
 
@@ -2048,7 +2246,9 @@ Callers must pass `timeout=`, `retries=`, etc. by name.
 
 **Heuristic:** the first one or two params can be positional (the "thing" the function operates on). Everything else — especially optional configuration — should be keyword-only.
 
-**For public APIs this is non-negotiable:** once a library ships positional config params, every reorder or addition is a breaking change.
+For public APIs the calculus is strongest: once a library ships positional config params, every reorder or addition is a breaking change.
+
+**Caveat:** Keyword-only parameter *names* become part of the compatibility surface, so renaming one is also a break — positional-only (`/`) exists for the opposite bet, preserving the freedom to rename the first one or two "thing" parameters.
 
 ## 5. Code Simplification
 
@@ -2146,7 +2346,7 @@ def should_notify(user: User, event: Event) -> bool:
     )
 ```
 
-Keep the nesting when intermediate logging, validation, or early returns happen between checks, or when the branches do genuinely different work. The rule: if every nested branch only holds another `if` until the final body, flatten. For chains where the happy path is the final action, the guard-clause form from `simplify-early-return` often reads cleanest.
+**Keep the nesting when intermediate logging, validation, or early returns happen between checks, or when the branches do genuinely different work.** If every nested branch only holds another `if` until the final body, flatten. For chains where the happy path is the final action, the guard-clause form from `simplify-early-return` often reads cleanest.
 
 ### 5.3 Inline Single-Use Intermediate Variables
 
@@ -2299,7 +2499,9 @@ def process_request(req: Request) -> Response:
     return do_process(req.body)
 ```
 
-The same pattern applies to loops — `if not item.active: continue` instead of nesting the work inside `if item.active:`. Keep `if/else` when the two branches do comparable work (`"positive"` vs. `"negative"` vs. `"zero"`); guard-clause when one branch is an error and the other is the real work.
+The same pattern applies to loops — `if not item.active: continue` instead of nesting the work inside `if item.active:`.
+
+**Keep `if/else` when the two branches do comparable work:** for example, `"positive"` vs. `"negative"` vs. `"zero"`. Use a guard clause when one branch is an error and the other is the real work.
 
 ### 5.6 Use @cached_property Only When the Instance Supports It
 
@@ -2339,7 +2541,7 @@ class Report:
         return compute_stats(self.rows)
 ```
 
-**Caveats:** not thread-safe — two threads racing on first access can both run the getter. `__slots__` classes without `"__dict__"` raise `TypeError` at first access. `copy.copy` carries the cached value over; clear it manually if the copy's inputs differ. For module-level pure functions, use `functools.lru_cache` / `functools.cache` instead (see `perf-lru-cache-pure-fns`) — `@cached_property` is the per-instance equivalent.
+**Caveats:** thread safety changed in 3.12. On 3.8–3.11, a class-wide lock serialized first access across *all* instances of the class — a contention hazard when many instances compute the property concurrently. On 3.12+, the lock is gone: two threads racing on first access can both run the getter, and the second write wins. `__slots__` classes without `"__dict__"` raise `TypeError` at first access. `copy.copy` carries the cached value over; clear it manually if the copy's inputs differ. For module-level pure functions, use `functools.lru_cache` / `functools.cache` instead (see `perf-lru-cache-pure-fns`) — `@cached_property` is the per-instance equivalent.
 
 ### 5.7 Use Comprehensions Over for+append Loops
 
@@ -2369,7 +2571,7 @@ unique_tags = {tag for post in posts for tag in post.tags}
 total = sum(item.price for item in items)   # generator, no intermediate list
 ```
 
-Break a comprehension into a loop when the expression stops reading like English — multi-step logic, side effects, or nested conditionals with intermediate variables are signs the comprehension has outgrown one line. For boolean reductions, prefer `any(u.is_admin for u in users)` over `any([...])` — the generator short-circuits and avoids materializing the list.
+**When to break a comprehension into a loop:** when the expression stops reading like English — multi-step logic, side effects, or nested conditionals with intermediate variables are signs the comprehension has outgrown one line. For boolean reductions, prefer `any(u.is_admin for u in users)` over `any([...])` — the generator short-circuits and avoids materializing the list.
 
 ### 5.8 Use any() / all() Over Boolean-Flag Loops
 
@@ -2514,18 +2716,22 @@ def attach_profiles(users: list[User], profiles: list[Profile]) -> list[Enriched
     return result
 ```
 
-**Correct (dict index — O(n + m)):**
+**Correct (dict index — O(n + m); duplicate policy stated):**
 
 ```python
 def attach_profiles(users: list[User], profiles: list[Profile]) -> list[EnrichedUser]:
-    profiles_by_user = {p.user_id: p for p in profiles}
+    profiles_by_user: dict[str, Profile] = {}
+    for profile in profiles:
+        profiles_by_user.setdefault(profile.user_id, profile)   # first match wins, like the scan
     return [
         EnrichedUser(user=user, profile=profiles_by_user.get(user.id))
         for user in users
     ]
 ```
 
-For one-to-many grouping, `collections.defaultdict(list)` avoids the "check-then-create" dance: `posts_by_author[post.author_id].append(post)`. `itertools.groupby` groups already-sorted inputs without building a dict. Nested loops stay fine for small collections (under ~50 × 50), for one-off operations, or when the inner loop has rich logic that doesn't reduce to a key lookup.
+**When nested loops stay fine:** for small collections (under ~50 × 50), for one-off operations, or when the inner loop has rich logic that doesn't reduce to a key lookup. For one-to-many grouping, `collections.defaultdict(list)` avoids the "check-then-create" dance: `posts_by_author[post.author_id].append(post)`. `itertools.groupby` groups already-sorted inputs without building a dict.
+
+An index is a drop-in replacement only when the duplicate-key policy matches: the scan finds the *first* match, while a plain `{p.user_id: p for p in profiles}` keeps the *last*. Decide and say so in the code — first wins (`setdefault`), last wins (comprehension), duplicates are an error (check while building), one-to-many (`defaultdict(list)`). The ~50 × 50 threshold is a heuristic, not a law: element cost, call frequency, key construction, and memory pressure move it in both directions.
 
 ### 6.2 Combine Filter and Map Into One Pass
 
@@ -2654,7 +2860,7 @@ def parse_users(raw: bytes) -> list[User]:
     return _USERS_ADAPTER.validate_json(raw)
 ```
 
-When the target type depends on a runtime value, cache per type with `@functools.cache`:
+**When the target type depends on a runtime value:** cache per type with `@functools.cache`:
 
 ```python
 @cache
@@ -2676,7 +2882,7 @@ This is a micro-optimization, not a correctness rule. Apply it only when:
 2. You have profiling data showing `isinstance` is a meaningful share of the time
 3. You'd otherwise reach for a more invasive change (rewriting the dispatch, caching results)
 
-In normal code, write whichever reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
+**Keep normal code natural:** write whichever form reads more naturally. `isinstance(x, int | float)` mirrors a type annotation and is a fine default.
 
 **Incorrect (rewriting `A | B` to `(A, B)` everywhere as a stylistic crusade):**
 
@@ -2728,7 +2934,11 @@ def count_errors(path: Path) -> int:
         return sum(1 for line in f if parse_line(line).level == "ERROR")
 ```
 
-Reach for a generator when the input is large, unbounded, or the consumer can stop early (`any()`, `next()`, `break`). Reach for a list when you need `len()`, iterate more than once, need random access, or will sort the whole sequence. A generator exhausted by the first loop reading zero on the second is a real bug, not a perf issue. `itertools` (`chain`, `islice`, `takewhile`, `groupby`) yields lazily for pipelines that stay streaming.
+Reach for a generator when the input is large, unbounded, or the consumer can stop early (`any()`, `next()`, `break`).
+
+**When to reach for a list:** when you need `len()`, iterate more than once, need random access, or will sort the whole sequence. A generator exhausted by the first loop reading zero on the second is a real bug, not a perf issue. `itertools` (`chain`, `islice`, `takewhile`, `groupby`) yields lazily for pipelines that stay streaming.
+
+Streaming only helps if the whole pipeline streams: a generator feeding an accumulator, cache, or context object that retains every item re-materializes the data one hop downstream. When memory is the point, audit what each stage retains and keep only the fields the next stage needs.
 
 ### 6.7 Use functools.lru_cache for Pure Functions
 
@@ -2764,11 +2974,11 @@ First call parses and stores; subsequent calls return the cached `Version`. `max
 from functools import cache
 
 @cache
-def load_schema(name: str) -> Schema:
-    return Schema.from_file(SCHEMA_DIR / f"{name}.json")
+def build_schema(spec: SchemaSpec) -> Schema:
+    return Schema.compile(spec)          # spec fully determines the result
 ```
 
-No size limit. Good when the key space is naturally small (like schema names) and entries are expensive to build.
+No size limit. Good when the key space is naturally small and entries are expensive to build. **The key must capture every input that influences the result:** a `load_schema(name)` that reads `SCHEMA_DIR / name` from disk caches the file's *contents* under a key that doesn't include them — it returns stale data forever if the file changes. Reading state that isn't in the arguments makes the function impure, and caching it freezes that state.
 
 **Requirements:**
 
@@ -2782,12 +2992,14 @@ No size limit. Good when the key space is naturally small (like schema names) an
 - The function has meaningful side effects (logging, writes)
 - The key space is unbounded and entries are large (cache grows without limit)
 - The computation is cheap and the call frequency is low
+- Callers may mutate the returned object — the cache hands every caller the same instance, so one caller's mutation becomes everyone's
+- Concurrent first calls must not duplicate work — these decorators don't lock; racing misses all execute
 
 **Hand-rolled caches:**
 
 If `@lru_cache` doesn't fit (unhashable args, multi-level keys, time-based invalidation), build a module-level `dict` cache — but name it clearly and document the invalidation strategy. Uncontrolled hand-rolled caches leak memory.
 
-**For instance methods, prefer `@cached_property`** when the "arguments" are just `self` — see `simplify-cached-property`.
+**Watch instance retention on cached methods:** on an instance method, the cache key includes `self`, so the cache holds a strong reference to every instance it has seen — released only on eviction or `cache_clear()`. A bounded LRU retains up to `maxsize` instances; `@cache` / `maxsize=None` retains all of them for the life of the process. When the value depends only on `self`, `@cached_property` (see `simplify-cached-property`) stores the result on the instance instead, so it's collected with the instance.
 
 ### 6.8 Use set for Repeated Membership Checks
 
@@ -3098,7 +3310,7 @@ def transfer(
     ...
 ```
 
-Generic is acceptable for truly generic helpers (`def first(items: list[T]) -> T`), when there's only one of the type in scope (`def render(user: User)`), or following convention (`self`, `cls`, `_`, loop indices `i` / `j` in math contexts). The red flag is ending up with `id`, `id2`, `id3` or `data`, `info`, `details`, `meta` all in the same scope — the number suffixes tell you the names aren't doing their job. In nested loops, `for user in users` beats `for x in users` once the body is more than a couple of lines.
+**When generic names are acceptable:** for truly generic helpers (`def first(items: list[T]) -> T`), when there's only one of the type in scope (`def render(user: User)`), or following convention (`self`, `cls`, `_`, loop indices `i` / `j` in math contexts). The red flag is ending up with `id`, `id2`, `id3` or `data`, `info`, `details`, `meta` all in the same scope — the number suffixes tell you the names aren't doing their job. In nested loops, `for user in users` beats `for x in users` once the body is more than a couple of lines.
 
 ### 7.6 Use UPPER_CASE for Module Constants
 
@@ -3131,7 +3343,7 @@ from typing import Final
 DEFAULT_TIMEOUT: Final[int] = 30  # checker flags any reassignment
 ```
 
-Keep `lower_case` for values that look like constants but aren't — derived from `os.environ` at import, intentionally reassignable feature flags, or test-mutable hooks. The convention is for *intentional* constants.
+**Keep `lower_case` for values that look like constants but aren't:** values derived from `os.environ` at import, intentionally reassignable feature flags, or test-mutable hooks. The convention is for *intentional* constants.
 
 ## 8. Imports & Structure
 
@@ -3141,29 +3353,32 @@ Module hygiene. Imports at the top, no import-time side effects, optional deps h
 
 ### 8.1 Handle Optional Dependencies Explicitly
 
-**Impact: LOW-MEDIUM (clear error messages instead of cryptic ImportError)**
+**Impact: LOW-MEDIUM (clear, correctly-scoped errors instead of cryptic failures far from the cause)**
 
-When a package has optional integrations, importing the module should not require every optional dep. Handle `ImportError` at module scope with a message pointing to the install extra; raising `None`-valued placeholders produces `AttributeError` far from the root cause.
+Optional dependencies have two import surfaces, and the guard belongs on the right one. The package's *shared* modules must not import an optional dep at all — otherwise it isn't optional (see `imports-lightweight-init`). The *integration-specific* module, which only users of that integration import, may fail at import — but with an actionable message, not a `None` placeholder that crashes with `AttributeError` far from the cause, and not a broad catch that misdiagnoses a broken install as a missing one.
 
-**Incorrect (silently swallowing the ImportError):**
+**Incorrect (placeholder crashes later; broad catch misdiagnoses):**
 
 ```python
 try:
     import anthropic
-except ImportError:
-    anthropic = None  # downstream code crashes with AttributeError later
+except ImportError:          # also catches anthropic's own broken transitive imports
+    anthropic = None         # downstream code crashes with AttributeError later
 
 class AnthropicProvider:
     def __init__(self):
         client = anthropic.Client()  # AttributeError: 'NoneType' has no 'Client'
 ```
 
-**Correct (raise with an actionable install hint; preserve the original cause):**
+**Correct (integration module guards its own import; distinguishes missing from broken):**
 
 ```python
+# providers/anthropic_provider.py — imported only by users of this integration
 try:
     import anthropic
-except ImportError as e:
+except ModuleNotFoundError as e:
+    if e.name != "anthropic":
+        raise                        # installed but broken — surface the real failure
     raise ImportError(
         "anthropic is required for AnthropicProvider. "
         "Install with: pip install 'mylib[anthropic]'"
@@ -3173,7 +3388,9 @@ class AnthropicProvider:
     ...
 ```
 
-If the dep is optional at the *feature* level rather than the *module* level, defer the import into the function that needs it — users who never call it never pay the cost. Pair module-scope optional imports with a `TYPE_CHECKING` block (see `types-type-checking-imports`) when type hints should resolve without requiring the runtime dep.
+`ModuleNotFoundError.name` identifies *which* module was missing — a transitive import failing inside an installed `anthropic` should propagate as itself, not as "please install anthropic."
+
+**When the dependency is optional at the feature level rather than the module level:** defer the import into the function that needs it — users who never call it never pay the cost. Pair module-scope optional imports with a `TYPE_CHECKING` block (see `types-type-checking-imports`) when type hints should resolve without requiring the runtime dep.
 
 ### 8.2 Keep Modules Cheap to Import
 
@@ -3195,6 +3412,14 @@ MODEL = SentenceTransformer("all-MiniLM-L6-v2")                # 90 MB download 
 
 # keys.py
 API_KEY = os.environ["MY_API_KEY"]                             # KeyError on import if unset
+
+# settings.py — env-validating settings object built at import
+class Settings:
+    def __init__(self) -> None:
+        self.database_url = os.environ["DATABASE_URL"]
+        self.api_key = os.environ["API_KEY"]
+
+settings = Settings()                # any import of this module now requires a full environment
 ```
 
 Importing any of these for a type or constant triggers the work. A CLI's `--help` takes seconds; offline CI breaks; reading the module docstring fails without the env var set.
@@ -3218,13 +3443,59 @@ def api_key() -> str:
     if not key:
         raise RuntimeError("MY_API_KEY is required to call this API")
     return key
+
+@cache
+def get_settings() -> Settings:
+    return Settings()                    # constructed at first use, at the composition boundary
 ```
 
 `@cache` gives you "once per process" semantics without the "every import" cost.
 
-Fine at import time: pure-Python constants, `re.compile` for a static pattern, class and function definitions, stdlib imports, cheap registrations. Push out of import time: network/disk I/O, subprocess launches, large model loads, env-var reads that may fail, DB/queue connections, heavy third-party imports the module doesn't unconditionally use. If `python -c "import yourpackage"` takes more than ~100 ms or hits the network, something at module scope should be deferred.
+**Scope:** Fine at import time: pure-Python constants, `re.compile` for a static pattern, class and function definitions, stdlib imports, cheap registrations. Push out of import time: network/disk I/O, subprocess launches, large model loads, env-var reads that may fail, DB/queue connections, heavy third-party imports the module doesn't unconditionally use. If `uv run python -c "import yourpackage"` takes more than ~100 ms or hits the network, something at module scope should be deferred.
 
-### 8.3 No Duplicate Imports
+The settings-object variant is the most common in practice: a module-scope `Settings()` — hand-rolled or from a settings library — makes every importer (test collection, docs builds, unrelated CLIs) require a fully-populated environment, and the failure surfaces as a validation error blaming the importer rather than the missing variable. Construct settings at the composition boundary and inject them.
+
+### 8.3 Keep Package __init__ Imports Light
+
+**Impact: LOW-MEDIUM (importing one symbol shouldn't load the whole package tree)**
+
+Importing any submodule executes every parent package's `__init__.py` first. An `__init__.py` that eagerly imports all its submodules turns `from pkg.core import parse` into "load the entire package" — including integrations that pull heavy or optional dependencies. The symptom is an `ImportError` for a dependency the importing code never mentions, or a cold start that pays for subsystems it doesn't use.
+
+**Incorrect (barrel drags an optional dep into every import):**
+
+```python
+# pkg/__init__.py
+from .core import parse, render
+from .exporters.excel import ExcelExporter    # imports openpyxl
+from .exporters.charts import ChartExporter   # imports matplotlib
+
+# elsewhere — a consumer that only wants parse():
+from pkg.core import parse   # ImportError: No module named 'openpyxl'
+```
+
+**Correct (cheap re-exports stay; heavy ones become lazy via PEP 562):**
+
+```python
+# pkg/__init__.py
+from .core import parse, render
+
+def __getattr__(name: str):
+    if name == "ExcelExporter":
+        from .exporters.excel import ExcelExporter
+        return ExcelExporter
+    if name == "ChartExporter":
+        from .exporters.charts import ChartExporter
+        return ChartExporter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+```
+
+`pkg.ExcelExporter` still works for users who want it — but only they pay for `openpyxl`.
+
+A deferred import inside the factory function that needs it achieves the same without `__getattr__`: a dispatch function that imports its integration in the matching branch keeps the optional dependency out of the import graph until that branch runs (one of the documented exceptions in `imports-top-of-file`). Type checkers resolve lazy attributes via a `TYPE_CHECKING` import block or a `.pyi` stub.
+
+**Scope:** Re-exporting the public API from `__init__.py` is a fine, mainstream pattern; the failure mode is *heavy or optional* imports riding along with it. Related: `imports-no-side-effects` covers work at import time; this rule covers import *fan-out* — both decide what `import pkg` costs.
+
+### 8.4 No Duplicate Imports
 
 **Impact: LOW (prevents confusion and redundant work)**
 
@@ -3282,7 +3553,7 @@ Add to pre-commit or CI.
 
 Reviewing the imports block after any merge or mass edit catches these before they land.
 
-### 8.4 Place Imports at the Top of the File
+### 8.5 Place Imports at the Top of the File
 
 **Impact: LOW (makes dependencies visible at a glance)**
 
@@ -3318,9 +3589,9 @@ def fetch_user(user_id: str) -> User:
     return User(**response.json())
 ```
 
-Inline imports are legitimate only for: breaking circular imports (add a comment so readers don't "fix" it), deferring truly optional/heavy deps behind a runtime gate (see `imports-optional-dependencies`), or avoiding module-load-time side effects. Outside those cases, top-of-file is the rule.
+**When inline imports are legitimate:** breaking circular imports (add a comment so readers don't "fix" it), deferring truly optional/heavy deps behind a runtime gate (see `imports-optional-dependencies`), or avoiding module-load-time side effects. Outside those cases, top-of-file is the rule.
 
-### 8.5 Remove Unused Imports
+### 8.6 Remove Unused Imports
 
 **Impact: LOW (prevents accidental dependencies and reduces noise)**
 
@@ -3349,9 +3620,11 @@ def compact(data: dict[str, Any]) -> str:
     return json.dumps(data, separators=(",", ":"))
 ```
 
-`ruff check --select F401` flags unused imports — wire it into pre-commit or CI. If a module intentionally re-exports names (common in `__init__.py`), use the `from .client import Client as Client` form or list them in `__all__`; both signal "intentional, not forgotten." If an import is used only in annotations, move it under `if TYPE_CHECKING:` (see `types-type-checking-imports`). Keep an otherwise-unused import only when importing it has a required side effect (plugin self-registration) — and comment it: `# noqa: F401 — registers handlers at import time`.
+`ruff check --select F401` flags unused imports — wire it into pre-commit or CI. If a module intentionally re-exports names (common in `__init__.py`), use the `from .client import Client as Client` form or list them in `__all__`; both signal "intentional, not forgotten." If an import is used only in annotations, move it under `if TYPE_CHECKING:` (see `types-type-checking-imports`).
 
-### 8.6 Scope Helpers and Constants to Their Usage Site
+**Keep an otherwise-unused import only when importing it has a required side effect:** comment it: `# noqa: F401 — registers handlers at import time`.
+
+### 8.7 Scope Helpers and Constants to Their Usage Site
 
 **Impact: LOW (reduces namespace pollution and clarifies intent)**
 
@@ -3400,6 +3673,7 @@ Prefer module-level over a nested `def` whenever the helper has real logic. Nest
 - https://docs.python.org/3/library/dataclasses.html
 - https://docs.python.org/3/library/exceptions.html
 - https://docs.python.org/3/reference/simple_stmts.html#the-assert-statement
+- https://peps.python.org/pep-0585/
 - https://docs.pydantic.dev/
 - https://mypy.readthedocs.io/
 - https://docs.astral.sh/ruff/

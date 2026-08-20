@@ -60,3 +60,5 @@ class ToolCall:
 **Why it matters:** redundancy means every mutation site has two (or more) places to update. Skipping one creates a drift bug that's only visible when the fields disagree.
 
 **Related:** `data-derive-dont-store` is the same idea at the field level — if one field is computable from another, compute it, don't store it.
+
+**Keep nesting that means something:** protocol envelopes, version boundaries, independently-evolving lifecycles, provenance wrappers, and genuine one-to-many cardinality are structure, not redundancy. The invariant this rule protects is *one authoritative source per fact* — not maximal flatness.

@@ -15,7 +15,7 @@ Section impact is a typical-case label. Individual rules range one level above o
 ## 2. Error Handling (error)
 
 **Impact:** MEDIUM-HIGH  
-**Description:** Specific exceptions, context managers for resources, preserved cancellation semantics. Sloppy exceptions hide bugs; narrow catches localize them.
+**Description:** Specific exceptions, context managers for resources, honest exception hierarchies. Sloppy exceptions hide bugs; narrow catches localize them.
 
 ## 3. Type Safety (types)
 

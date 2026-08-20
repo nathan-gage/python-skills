@@ -32,7 +32,9 @@ def fetch_user(user_id: str) -> User | None:
     return parse_user(response.json())  # bugs here propagate
 ```
 
-Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`. A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
+Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`.
+
+**When a broad catch is acceptable:** A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
 
 ```python
 def handle_request(req: Request) -> Response:
@@ -43,6 +45,6 @@ def handle_request(req: Request) -> Response:
         raise
 ```
 
-**Cancellation semantics (asyncio / anyio):** On Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception`. So `except Exception:` is cancellation-safe — do not flag it as "swallowing cancellation." Only `except BaseException:` (or bare `except:`) catches cancellation. If you do catch `BaseException` or `anyio.get_cancelled_exc_class()`, re-raise. Wrap must-complete cleanup in `asyncio.shield()` — under cancellation, `finally:` blocks race against the cancellation itself.
+**Cancellation (asyncio):** on Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` — so `except Exception:` is cancellation-safe; do not flag it as "swallowing cancellation." If a bare `except:` or `except BaseException:` does intercept cancellation, clean up and re-raise. The full asyncio semantics — `gather(return_exceptions=True)` results, cleanup under a pending cancellation, framework caveats — live in python-async-best-practices' `async-preserve-cancellation`.
 
 For meaningful handling, create domain-specific exception types (`ToolTimeoutError(ToolExecutionError)`, etc.) so handlers match on failure mode rather than error text.

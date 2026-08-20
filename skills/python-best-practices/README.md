@@ -59,9 +59,9 @@ Keep rule bodies short — target 20–40 lines. One Incorrect block, one Correc
 ## Scripts
 
 ```bash
-python src/build.py            # compile rules into AGENTS.md
-python src/validate.py         # lint frontmatter, references, example structure
-python src/extract_tests.py    # generate test-cases.json for LLM evals
+uv run src/build.py            # compile rules into AGENTS.md
+uv run src/validate.py         # lint frontmatter, references, example structure
+uv run src/extract_tests.py    # generate test-cases.json for LLM evals
 ```
 
 Typical loop: `validate.py` → fix → `build.py` → `extract_tests.py` before commit. `AGENTS.md` and `test-cases.json` are generated outputs — don't hand-edit.

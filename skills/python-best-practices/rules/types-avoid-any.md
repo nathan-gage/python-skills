@@ -54,3 +54,5 @@ def first_or_none(items: list[T]) -> T | None:
 Generic, not unchecked.
 
 **When `Any` is genuinely unavoidable** (interop with dynamically typed libraries, some JSON boundaries), restrict its scope to one line, narrow to a concrete type immediately, and document the invariant in a comment.
+
+**A clean checker run doesn't mean typed:** dynamically-typed factories (e.g. `boto3.client(...)`) return `Any`, and everything derived from them stays `Any` without a single diagnostic. Spot-check important boundary values with `reveal_type()` or editor hover, and install stub packages for the SDKs you depend on, so `Any` at a boundary is a visible, deliberate choice rather than silent drift.

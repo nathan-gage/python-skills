@@ -31,7 +31,7 @@ def parse_users(raw: bytes) -> list[User]:
     return _USERS_ADAPTER.validate_json(raw)
 ```
 
-When the target type depends on a runtime value, cache per type with `@functools.cache`:
+**When the target type depends on a runtime value:** cache per type with `@functools.cache`:
 
 ```python
 @cache

@@ -1,0 +1,11 @@
+[project]
+name = "python-skills-proofs"
+version = "0.1.0"
+description = "Executable proofs for version-sensitive claims made by the skills in this repository"
+requires-python = ">=3.11"
+dependencies = ["pytest>=8", "mypy>=1.13", "pyright>=1.1.390", "ty>=0.0.1a1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+xfail_strict = true
+addopts = "-q"

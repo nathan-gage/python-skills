@@ -44,6 +44,8 @@ adapter = adapters[cls]  # type: ignore[assignment]
 
 A reviewer should be able to read the comment and confirm the suppression is justified without re-deriving the reasoning.
 
+Suppressions that *fabricate* types are worse than ignores: declaring members under `if TYPE_CHECKING:` that the runtime object doesn't have makes the checker vouch for attributes that will `AttributeError` in production. If an object structurally satisfies an interface the checker can't see, write a `Protocol` that tells the truth about what exists.
+
 **Escape hatches to prefer before ignoring:**
 - `cast(T, value)` with a comment (see `types-fix-types-not-cast` for when it's appropriate)
 - `assert isinstance(x, T)` — runtime check plus narrowing

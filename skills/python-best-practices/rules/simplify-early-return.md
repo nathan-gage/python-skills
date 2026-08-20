@@ -44,4 +44,6 @@ def process_request(req: Request) -> Response:
     return do_process(req.body)
 ```
 
-The same pattern applies to loops — `if not item.active: continue` instead of nesting the work inside `if item.active:`. Keep `if/else` when the two branches do comparable work (`"positive"` vs. `"negative"` vs. `"zero"`); guard-clause when one branch is an error and the other is the real work.
+The same pattern applies to loops — `if not item.active: continue` instead of nesting the work inside `if item.active:`.
+
+**Keep `if/else` when the two branches do comparable work:** for example, `"positive"` vs. `"negative"` vs. `"zero"`. Use a guard clause when one branch is an error and the other is the real work.

@@ -3,7 +3,7 @@ title: Use functools.lru_cache for Pure Functions
 impact: LOW-MEDIUM
 impactDescription: trades memory for CPU on repeatable computations
 tags: perf, lru-cache, caching, functools
-references: https://docs.python.org/3/library/functools.html#functools.lru_cache, https://docs.python.org/3/library/functools.html#functools.cache
+references: https://docs.python.org/3/library/functools.html#functools.lru_cache, https://docs.python.org/3/library/functools.html#functools.cache, https://docs.python.org/3/faq/programming.html#how-do-i-cache-method-calls
 ---
 
 ## Use `functools.lru_cache` for Pure Functions
@@ -38,11 +38,11 @@ First call parses and stores; subsequent calls return the cached `Version`. `max
 from functools import cache
 
 @cache
-def load_schema(name: str) -> Schema:
-    return Schema.from_file(SCHEMA_DIR / f"{name}.json")
+def build_schema(spec: SchemaSpec) -> Schema:
+    return Schema.compile(spec)          # spec fully determines the result
 ```
 
-No size limit. Good when the key space is naturally small (like schema names) and entries are expensive to build.
+No size limit. Good when the key space is naturally small and entries are expensive to build. **The key must capture every input that influences the result:** a `load_schema(name)` that reads `SCHEMA_DIR / name` from disk caches the file's *contents* under a key that doesn't include them — it returns stale data forever if the file changes. Reading state that isn't in the arguments makes the function impure, and caching it freezes that state.
 
 **Requirements:**
 
@@ -56,9 +56,11 @@ No size limit. Good when the key space is naturally small (like schema names) an
 - The function has meaningful side effects (logging, writes)
 - The key space is unbounded and entries are large (cache grows without limit)
 - The computation is cheap and the call frequency is low
+- Callers may mutate the returned object — the cache hands every caller the same instance, so one caller's mutation becomes everyone's
+- Concurrent first calls must not duplicate work — these decorators don't lock; racing misses all execute
 
 **Hand-rolled caches:**
 
 If `@lru_cache` doesn't fit (unhashable args, multi-level keys, time-based invalidation), build a module-level `dict` cache — but name it clearly and document the invalidation strategy. Uncontrolled hand-rolled caches leak memory.
 
-**For instance methods, prefer `@cached_property`** when the "arguments" are just `self` — see `simplify-cached-property`.
+**Watch instance retention on cached methods:** on an instance method, the cache key includes `self`, so the cache holds a strong reference to every instance it has seen — released only on eviction or `cache_clear()`. A bounded LRU retains up to `maxsize` instances; `@cache` / `maxsize=None` retains all of them for the life of the process. When the value depends only on `self`, `@cached_property` (see `simplify-cached-property`) stores the result on the instance instead, so it's collected with the instance.

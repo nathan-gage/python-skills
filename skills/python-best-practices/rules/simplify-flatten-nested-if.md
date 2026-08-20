@@ -31,4 +31,4 @@ def should_notify(user: User, event: Event) -> bool:
     )
 ```
 
-Keep the nesting when intermediate logging, validation, or early returns happen between checks, or when the branches do genuinely different work. The rule: if every nested branch only holds another `if` until the final body, flatten. For chains where the happy path is the final action, the guard-clause form from `simplify-early-return` often reads cleanest.
+**Keep the nesting when intermediate logging, validation, or early returns happen between checks, or when the branches do genuinely different work.** If every nested branch only holds another `if` until the final body, flatten. For chains where the happy path is the final action, the guard-clause form from `simplify-early-return` often reads cleanest.

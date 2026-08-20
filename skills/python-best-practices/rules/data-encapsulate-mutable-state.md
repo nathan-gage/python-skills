@@ -49,3 +49,5 @@ class DebouncedAction:
 ```
 
 A closure returning `(trigger, clear)` is the right alternative when no one needs to inspect, type, serialize, or mock the state — the surface is just the two callables. Module-level globals deserve more pushback than either; prefer dependency injection.
+
+**Scope is a dial, not a mandate:** a small class where every method genuinely participates in the state's lifecycle isn't "too wide" — the smell is methods that *could* touch state they have no business with. Don't shrink scope at the cost of a contorted interface.

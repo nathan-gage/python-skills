@@ -35,4 +35,6 @@ async def find_header(path: str) -> Record | None:
 
 `aclose()` throws `GeneratorExit` into the generator at its current `yield`, so its `finally` / `async with` cleanup runs now, in this task, on this loop.
 
-The same applies to explicitly held iterators: code that obtains an `AsyncIterator` and stops early should call `await it.aclose()` in a `finally` (guard with `getattr(it, "aclose", None)` when the iterator may not be a generator). Stacked stream wrappers tear down LIFO — close the outermost wrapper first and the underlying source last, the reverse of construction order. Consumers that always run to exhaustion don't need any of this — exhaustion finalizes the generator normally.
+The same applies to explicitly held iterators: code that obtains an `AsyncIterator` and stops early should call `await it.aclose()` in a `finally` (guard with `getattr(it, "aclose", None)` when the iterator may not be a generator). Stacked stream wrappers tear down LIFO — close the outermost wrapper first and the underlying source last, the reverse of construction order.
+
+**When nothing is needed:** consumers that always run to exhaustion finalize the generator normally — `aclosing` there is harmless ceremony, not a requirement.

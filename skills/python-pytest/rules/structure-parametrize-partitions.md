@@ -46,3 +46,5 @@ def test_set_limit_rejects_negative():
 ```
 
 `id=` names make a failing case self-describing in the report. When case lists are generated, guard the degenerate outcome: an accidentally-empty parameter set skips silently by default — set `empty_parameter_set_mark = fail_at_collect` so a filter bug that produces zero cases fails collection instead of green-lighting nothing.
+
+**When a plain loop beats parametrize:** cases that share one expensive setup, or assertions that accumulate across cases, read better as a single test iterating a local table. Parametrize's payoff is per-case isolation, selection, and ids; when none of that is needed, the decorator is ceremony.

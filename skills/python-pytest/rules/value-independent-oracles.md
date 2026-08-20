@@ -34,4 +34,6 @@ def test_shipping_cost_monotonic_in_weight():
     assert shipping_cost(heavy) > shipping_cost(light)  # holds whatever the rates are
 ```
 
-The constant came from working the example on paper; the invariant survives rate changes. When a hand-derived value would be brittle (large outputs), assert properties instead: length, ordering, round-trip (`parse(serialize(x)) == x`), or comparison against a trivially-correct reference implementation. Snapshot assertions are a last resort for structured output — they catch *change*, not *correctness*, and every intentional change costs a snapshot review.
+The constant came from working the example on paper; the invariant survives rate changes. Snapshot assertions are a last resort for structured output — they catch *change*, not *correctness*, and every intentional change costs a snapshot review.
+
+**When a hand-derived constant is brittle** (large or structured outputs), assert properties instead: length, ordering, round-trip (`parse(serialize(x)) == x`), or comparison against a trivially-correct reference implementation. And sharing a named constant between code and test (`PER_KG`, a tax table) is not self-oracle: the test then pins the *formula's use* of the constant, which is often exactly the contract — the trap is re-running the whole computation.

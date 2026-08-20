@@ -95,6 +95,8 @@ Brief explanation — why it matters in one paragraph.
 Optional closing paragraph with nuance, edge cases, or references.
 ```
 
+Every rule at MEDIUM impact or above MUST include a **counter-signal** passage — prose saying when NOT to apply the rule or what to preserve (`validate.py` enforces this). `extract_tests.py` exports these passages as `counter_signals` in `test-cases.json`; evals score condition-aware application and restraint, not similarity to the Correct block.
+
 ### Best Practices for Context Efficiency
 
 Skills load on-demand — only the skill name and description are loaded at startup. The full `SKILL.md` loads only when the agent decides the skill is relevant. Keep each file small so the agent pulls in only what it needs:
@@ -119,11 +121,11 @@ Sections in `_sections.md` are numbered. The numeric prefix communicates priorit
 
 ### Validating Claims (`proofs/`)
 
-`proofs/` (repo tooling, not vendored with any skill) holds executable pytest proofs for version-sensitive or counterintuitive runtime claims made by rules. Run `make -C proofs` to execute them across supported Python versions via `uv`.
+`proofs/` (repo tooling, not vendored with any skill) holds executable checks for claims made by rules: `tests/` runs runtime claims across supported Python versions, and `typing_tests/` runs checker-fixture claims through mypy, pyright, and ty. Run `make -C proofs` for everything, `make -C proofs typing` for the checker lane.
 
 - A new rule that asserts version-dependent or surprising runtime behavior MUST get a proof in `proofs/tests/`, with a docstring citing the rule id and quoting the claim.
 - A proof that fails on a supported version means the rule text is wrong or needs a version qualifier — fix the rule, not the proof.
-- Type-checker-level claims (variance, narrowing) are out of scope for the runtime harness; verify those against checker documentation.
+- Typing-behavior claims (variance, narrowing, exhaustiveness) get a fixture in `proofs/typing_tests/fixtures/` with per-checker expected verdicts.
 
 ## Philosophy
 

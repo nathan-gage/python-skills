@@ -1,5 +1,6 @@
 {
   "generated_by": "src/extract_tests.py",
+  "scoring": "The correct block is one valid instance under the rule's conditions, not a canonical target. Score condition-aware application and preservation of code matching counter_signals, not similarity to correct.",
   "count": 13,
   "cases": [
     {
@@ -13,7 +14,10 @@
       ],
       "incorrect": "@pytest.mark.flaky(reruns=3)                    # passes on the third try \u2260 passes\ndef test_cache_eviction(): ...\n\n@pytest.mark.xfail(reason=\"sometimes fails on CI\")   # non-strict: quietly ignores both outcomes\ndef test_concurrent_writes(): ...\n\n# conftest.py\nFLAKY_TIMEOUT = 30  # was 5; raised until CI stopped failing",
       "correct": "def test_cache_eviction():\n    clock = FakeClock()                          # control the time the race depended on\n    cache = Cache(max_age=60, clock=clock)\n    cache.set(\"k\", \"v\")\n    clock.advance(61)\n    assert cache.get(\"k\") is None",
-      "explanation": "A flaky test is evidence: a race, an order dependency, leaked state, or a timing assumption \u2014 in the test or in the code under test. Rerun plugins, widened timeouts, `flaky` markers, and intermittent `xfail` all convert that evidence into permanent noise: the bug stays, the suite slows, and every future flake hides behind the masking already in place. Masking also inverts the incentive \u2014 once retries are normal, nobody investigates the first failure."
+      "explanation": "A flaky test is evidence: a race, an order dependency, leaked state, or a timing assumption \u2014 in the test or in the code under test. Rerun plugins, widened timeouts, `flaky` markers, and intermittent `xfail` all convert that evidence into permanent noise: the bug stays, the suite slows, and every future flake hides behind the masking already in place. Masking also inverts the incentive \u2014 once retries are normal, nobody investigates the first failure.",
+      "counter_signals": [
+        "The repair toolkit: control the sources of nondeterminism (inject clocks, seed RNGs, synchronize on events per `determinism-sync-not-sleep`), isolate leaked state (`fixtures-restore-global-state`), and reproduce order dependence by running the failing test alone and with `-p no:randomly` / a fixed seed to bisect. When a fix genuinely can't land now, a *strict, linked* skip is the honest parking spot: `pytest.mark.skip(reason=\"racy: see ISSUE-123\")` \u2014 visible, tracked, and not silently consuming retries on every run."
+      ]
     },
     {
       "rule": "determinism-strict-xfail",
@@ -26,7 +30,10 @@
       ],
       "incorrect": "@pytest.mark.xfail(reason=\"negative quantities not supported yet\")\ndef test_refund_negative_quantity():\n    assert refund(make_order(), quantity=-1).status == \"rejected\"",
       "correct": "@pytest.mark.xfail(strict=True, reason=\"negative quantities not supported yet \u2014 ISSUE-482\")\ndef test_refund_negative_quantity():\n    assert refund(make_order(), quantity=-1).status == \"rejected\"",
-      "explanation": "`xfail` marks a test that *should* fail today \u2014 a known bug, an unimplemented case. Without `strict=True`, an xfail that unexpectedly passes reports `XPASS` and the run stays green: when the bug gets fixed (or the test stops testing anything), nobody is told, and the marker outlives its reason indefinitely. Strict mode makes the marker self-expiring \u2014 the moment reality diverges from the annotation, the suite says so."
+      "explanation": "`xfail` marks a test that *should* fail today \u2014 a known bug, an unimplemented case. Without `strict=True`, an xfail that unexpectedly passes reports `XPASS` and the run stays green: when the bug gets fixed (or the test stops testing anything), nobody is told, and the marker outlives its reason indefinitely. Strict mode makes the marker self-expiring \u2014 the moment reality diverges from the annotation, the suite says so.",
+      "counter_signals": [
+        "**Scope:** `xfail` documents a *deterministic* known failure, never an intermittent one (that's flake-masking \u2014 see `determinism-no-flake-masking`); neither `xfail` nor `skip` is a parking spot for development probes that never asserted anything (see `value-observable-contracts`). Non-strict has one honest, time-boxed use: a compatibility matrix where a case is *expected* to vary across platform or dependency versions and both outcomes are informative while support lands \u2014 with an owner and an exit date, not as a permanent state."
+      ]
     },
     {
       "rule": "determinism-sync-not-sleep",
@@ -40,7 +47,10 @@
       ],
       "incorrect": "async def test_worker_processes_job():\n    worker.submit(job)\n    await asyncio.sleep(0.1)                 # hope the worker ran\n    assert job.id in worker.completed",
       "correct": "async def test_worker_processes_job():\n    done = asyncio.Event()\n    worker.on_complete(lambda _: done.set())\n    worker.submit(job)\n    async with asyncio.timeout(5):           # bound the wait, not the assertion\n        await done.wait()\n    assert job.id in worker.completed",
-      "explanation": "A sleep in a concurrency test encodes a bet about scheduling: \"0.1 s is enough for the worker to finish.\" On a loaded CI runner the bet loses, and the test flakes; on every other run the bet wins, and the suite still pays the sleep. Ordering and completion are facts the code under test can expose \u2014 synchronize on events, barriers, or observable state transitions, with a bounded timeout as the failure path."
+      "explanation": "A sleep in a concurrency test encodes a bet about scheduling: \"0.1 s is enough for the worker to finish.\" On a loaded CI runner the bet loses, and the test flakes; on every other run the bet wins, and the suite still pays the sleep. Ordering and completion are facts the code under test can expose \u2014 synchronize on events, barriers, or observable state transitions, with a bounded timeout as the failure path.",
+      "counter_signals": [
+        "**When time itself is under test** (a debouncer's quiescence window, a TTL), inject a controllable clock and advance it deterministically \u2014 that tests the time logic without betting on the scheduler. If the component can't take a clock, one bounded real-time wait on its observable output is the fallback: a deadline, never a proof of ordering."
+      ]
     },
     {
       "rule": "fixtures-canonical-objects",
@@ -53,7 +63,10 @@
       ],
       "incorrect": "@pytest.fixture\ndef deploy_config():\n    return {                                # guessed shape\n        \"image\": \"app:1.2.3\",\n        \"replicas\": 2,\n        # missing \"auth\" \u2014 first failure; missing \"region\" \u2014 second failure\n    }",
       "correct": "@pytest.fixture\ndef make_deploy_config():\n    def _make(**overrides: object) -> DeployConfig:\n        defaults: dict[str, object] = {\n            \"image\": \"app:1.2.3\",\n            \"replicas\": 2,\n            \"auth\": AuthRef(\"deploy-bot\"),\n            \"region\": \"us-east-1\",\n        }\n        return DeployConfig.validate(defaults | overrides)   # production validator fills/checks the rest\n    return _make\n\ndef test_scale_up(make_deploy_config):\n    config = make_deploy_config(replicas=6)\n    assert plan(config).action == \"scale-up\"",
-      "explanation": "A fixture assembled as a raw dict or a partially-filled object encodes a guess about what the code under test requires. Each missing field surfaces as a separate test failure \u2014 fix `auth`, rerun, discover `region`, rerun \u2014 and the finished fixture is a private fork of the schema that silently rots when the real model gains a field. Build fixtures through the same constructor, validator, or factory production code uses, so a fixture that constructs is a fixture that's complete."
+      "explanation": "A fixture assembled as a raw dict or a partially-filled object encodes a guess about what the code under test requires. Each missing field surfaces as a separate test failure \u2014 fix `auth`, rerun, discover `region`, rerun \u2014 and the finished fixture is a private fork of the schema that silently rots when the real model gains a field. Build fixtures through the same constructor, validator, or factory production code uses, so a fixture that constructs is a fixture that's complete.",
+      "counter_signals": [
+        "**Exception \u2014 the constructor under test:** tests *of* the constructor or validator itself must not route their inputs through it. Feed raw inputs and assert against independently-derived expectations (see `value-independent-oracles`); a validator test whose fixture already passed the validator can only confirm that the validator agrees with itself."
+      ]
     },
     {
       "rule": "fixtures-narrowest-scope",
@@ -66,7 +79,10 @@
       ],
       "incorrect": "@pytest.fixture(scope=\"session\")\ndef db():\n    return InMemoryDB()          # every test shares one instance\n\ndef test_create_user(db):\n    db.insert(User(name=\"ada\"))\n    assert db.count(User) == 1   # passes alone; fails after any test that inserted",
       "correct": "@pytest.fixture\ndef db():\n    return InMemoryDB()          # fresh per test \u2014 order stops mattering\n\n@pytest.fixture(scope=\"session\")\ndef compiled_schema() -> Schema:\n    return Schema.compile(SCHEMA_PATH)   # expensive, read-only: safe to share",
-      "explanation": "A fixture's scope is a sharing contract: `session` scope means every test sees the same object, including mutations left by earlier tests. Widening scope for speed trades isolation for it \u2014 and the cost surfaces later as tests that pass alone but fail in suite order (or worse, pass only in suite order). Default to `function` scope; widen only when the fixture is expensive *and* the shared object is immutable or reset between uses."
+      "explanation": "A fixture's scope is a sharing contract: `session` scope means every test sees the same object, including mutations left by earlier tests. Widening scope for speed trades isolation for it \u2014 and the cost surfaces later as tests that pass alone but fail in suite order (or worse, pass only in suite order). Default to `function` scope; widen only when the fixture is expensive *and* the shared object is immutable or reset between uses.",
+      "counter_signals": [
+        "A fixture's scope is a sharing contract: `session` scope means every test sees the same object, including mutations left by earlier tests. Widening scope for speed trades isolation for it \u2014 and the cost surfaces later as tests that pass alone but fail in suite order (or worse, pass only in suite order). Default to `function` scope; widen only when the fixture is expensive *and* the shared object is immutable or reset between uses."
+      ]
     },
     {
       "rule": "fixtures-restore-global-state",
@@ -80,7 +96,10 @@
       ],
       "incorrect": "def test_uses_staging_endpoint():\n    os.environ[\"API_ENDPOINT\"] = \"https://staging.example.com\"   # never removed\n    os.chdir(\"/tmp/scratch\")                                     # leaks to every later test\n    assert client().endpoint.startswith(\"https://staging\")\n    del os.environ[\"API_ENDPOINT\"]                               # skipped when the assert fails",
       "correct": "def test_uses_staging_endpoint(monkeypatch, tmp_path):\n    monkeypatch.setenv(\"API_ENDPOINT\", \"https://staging.example.com\")\n    monkeypatch.chdir(tmp_path)\n    assert client().endpoint.startswith(\"https://staging\")",
-      "explanation": "Environment variables, the working directory, module-level registries, class attributes, random seeds \u2014 anything process-global that a test mutates outlives the test unless something restores it. The next casualty is whichever test runs after, in an order that varies by `-k` filter and parallel worker, which is how \"passes alone, fails in CI\" is born. Restoration must also cover the *absent* case: a variable that didn't exist before the test must be deleted after, not left set. And it must run on failure, not just success \u2014 teardown in the test body after the asserts doesn't."
+      "explanation": "Environment variables, the working directory, module-level registries, class attributes, random seeds \u2014 anything process-global that a test mutates outlives the test unless something restores it. The next casualty is whichever test runs after, in an order that varies by `-k` filter and parallel worker, which is how \"passes alone, fails in CI\" is born. Restoration must also cover the *absent* case: a variable that didn't exist before the test must be deleted after, not left set. And it must run on failure, not just success \u2014 teardown in the test body after the asserts doesn't.",
+      "counter_signals": [
+        "**Scope:** the rule targets state tests *mutate*. Process-global state that is immutable for the suite's lifetime \u2014 a compiled schema loaded once, a read-only settings snapshot \u2014 needs no per-test restoration; wrapping it in teardown machinery is ceremony without isolation value."
+      ]
     },
     {
       "rule": "mock-assert-wire-format",
@@ -93,7 +112,10 @@
       ],
       "incorrect": "def test_list_users_excludes_disabled(fake_transport):\n    client.list_users(include_disabled=False)\n    assert fake_transport.last_request.params == {\"include_disabled\": False}\n    # urlencode sent \"include_disabled=False\"; the server expected \"false\" \u2014 test can't see it",
       "correct": "def test_list_users_excludes_disabled(fake_transport):\n    client.list_users(include_disabled=False)\n    assert fake_transport.last_request.url.query == \"include_disabled=false\"\n\ndef test_create_user_body_wire_format(fake_transport):\n    client.create_user(name=\"Ada\", joined=date(2026, 3, 1))\n    assert fake_transport.last_request.body == b'{\"name\": \"Ada\", \"joined\": \"2026-03-01\"}'",
-      "explanation": "Compatibility with an external system lives at the serialized boundary \u2014 the query string, the JSON bytes, the header line \u2014 not at the Python value you intended to send. Serializers make their own choices on the way out: `urlencode({\"include_disabled\": False})` produces `include_disabled=False` (capital F), which a server comparing against `\"false\"` rejects; `json.dumps` and datetime/decimal encoders make similar choices. A test that asserts the Python-level argument can pass while every real request fails."
+      "explanation": "Compatibility with an external system lives at the serialized boundary \u2014 the query string, the JSON bytes, the header line \u2014 not at the Python value you intended to send. Serializers make their own choices on the way out: `urlencode({\"include_disabled\": False})` produces `include_disabled=False` (capital F), which a server comparing against `\"false\"` rejects; `json.dumps` and datetime/decimal encoders make similar choices. A test that asserts the Python-level argument can pass while every real request fails.",
+      "counter_signals": [
+        "**Scope:** assert exact bytes only where the bytes *are* the contract \u2014 signatures, canonical serialization, cache keys, golden protocol fixtures. Otherwise parse the wire form back and assert on the parsed *strings* (`parse_qs(query)[\"include_disabled\"] == [\"false\"]`) \u2014 still the peer's view, minus ordering sensitivity. The principle generalizes: whenever a test guards compatibility with a system that parses text or bytes, the assertion belongs on the text or bytes. This is also why `mock-stable-boundaries` fakes the transport rather than the client \u2014 mock the client and there is no wire representation left to assert on."
+      ]
     },
     {
       "rule": "mock-patch-where-used",
@@ -106,7 +128,10 @@
       ],
       "incorrect": "# app/checkout.py\nfrom payments.gateway import charge\n\ndef submit_order(order: Order) -> Receipt:\n    return charge(order.total)\n\n# tests/test_checkout.py\ndef test_submit_order(mocker):\n    fake = mocker.patch(\"payments.gateway.charge\")   # checkout.charge still the real one\n    submit_order(make_order())\n    fake.assert_called_once()                        # AssertionError: not called",
       "correct": "def test_submit_order(mocker):\n    fake = mocker.patch(\"app.checkout.charge\", return_value=Receipt(ok=True))\n    submit_order(make_order())\n    fake.assert_called_once()",
-      "explanation": "`from payments.gateway import charge` copies the function reference into the importing module's namespace at import time. Patching `payments.gateway.charge` afterwards rebinds the *original* module's name \u2014 the copy in the module under test still points at the real function, and the test either hits the network or asserts against a mock that was never called. Patch the name in the namespace where the code under test looks it up."
+      "explanation": "`from payments.gateway import charge` copies the function reference into the importing module's namespace at import time. Patching `payments.gateway.charge` afterwards rebinds the *original* module's name \u2014 the copy in the module under test still points at the real function, and the test either hits the network or asserts against a mock that was never called. Patch the name in the namespace where the code under test looks it up.",
+      "counter_signals": [
+        "**When patching isn't the fix:** a test that needs a stack of patches to reach its subject is measuring the code's wiring, not its behavior \u2014 the code is saying its dependencies aren't injectable. Pass the collaborator as a parameter and patch nothing (see `mock-stable-boundaries`); reserve `patch` for names that genuinely can't be injected."
+      ]
     },
     {
       "rule": "mock-stable-boundaries",
@@ -119,7 +144,10 @@
       ],
       "incorrect": "def test_fetch_user(mocker):\n    api = mocker.patch(\"app.service.ApiClient\")            # entire client replaced\n    api.return_value.get_user.return_value = User(id=\"u1\")\n    assert get_user_profile(\"u1\").id == \"u1\"               # asserts the mock echoed itself",
       "correct": "def test_fetch_user_parses_response(fake_transport):\n    fake_transport.enqueue(200, body=b'{\"id\": \"u1\", \"name\": \"Ada\"}')\n    client = ApiClient(transport=fake_transport)           # real encoding + parsing run\n    user = get_user_profile(\"u1\", client=client)\n    assert user.name == \"Ada\"\n    assert fake_transport.last_request.url.path == \"/users/u1\"",
-      "explanation": "Every mock removes real behavior from the test. Mock the whole client and the test exercises none of the request encoding, response parsing, or error mapping the client wraps \u2014 the assertions check that the mock returns what the mock was told to return. Fake only the boundary you don't own (the network transport, the clock, the filesystem), and let everything you *do* own run for real. Prefer a cheap real collaborator \u2014 an in-memory repository, a real parser on canned bytes \u2014 over a broad `MagicMock` whose behavior is whatever the test wishes."
+      "explanation": "Every mock removes real behavior from the test. Mock the whole client and the test exercises none of the request encoding, response parsing, or error mapping the client wraps \u2014 the assertions check that the mock returns what the mock was told to return. Fake only the boundary you don't own (the network transport, the clock, the filesystem), and let everything you *do* own run for real. Prefer a cheap real collaborator \u2014 an in-memory repository, a real parser on canned bytes \u2014 over a broad `MagicMock` whose behavior is whatever the test wishes.",
+      "counter_signals": [
+        "**State the test level:** this rule targets integration-style tests of a client or adapter \u2014 the code whose job *is* the boundary. A focused unit test may legitimately mock an owned, independently-tested collaborator to isolate the unit's own logic; the tautology trap is mocking away the very behavior the test claims to cover. Wherever a hand-rolled fake stands in for a real collaborator long-term, check it against the real implementation somewhere, or drift is invisible."
+      ]
     },
     {
       "rule": "structure-parametrize-partitions",
@@ -132,7 +160,10 @@
       ],
       "incorrect": "@pytest.mark.parametrize(\"a, b\", [(1, 2), (3, 4), (5, 6), (7, 8), (9, 10)])  # all \"two positives\"\ndef test_add(a, b):\n    assert add(a, b) == a + b            # oracle mirrors the implementation, too\n\n@pytest.mark.parametrize(\"value, should_raise\", [(5, False), (-1, True)])\ndef test_set_limit(value, should_raise):\n    if should_raise:                     # two contracts sharing a name\n        with pytest.raises(ValueError):\n            set_limit(value)\n    else:\n        assert set_limit(value) == 5",
       "correct": "@pytest.mark.parametrize(\n    \"quantity, expected\",\n    [\n        pytest.param(1, Decimal(\"9.99\"), id=\"single-item\"),\n        pytest.param(12, Decimal(\"107.89\"), id=\"dozen-crosses-discount-threshold\"),\n        pytest.param(0, Decimal(\"0\"), id=\"empty-order\"),\n    ],\n)\ndef test_order_total(quantity, expected):\n    assert order_total(make_order(quantity=quantity)) == expected\n\ndef test_set_limit_rejects_negative():\n    with pytest.raises(ValueError, match=\"must be positive\"):\n        set_limit(-1)",
-      "explanation": "`parametrize` earns its keep when each case is a distinct partition of the input space with an independently-derived expected result \u2014 boundary, typical, degenerate, error. Ten cases that exercise the same partition with different literals add runtime and noise, not protection; and a parametrized test whose body branches on the case (`if expected_error: ... else: ...`) has grown two tests wearing one name."
+      "explanation": "`parametrize` earns its keep when each case is a distinct partition of the input space with an independently-derived expected result \u2014 boundary, typical, degenerate, error. Ten cases that exercise the same partition with different literals add runtime and noise, not protection; and a parametrized test whose body branches on the case (`if expected_error: ... else: ...`) has grown two tests wearing one name.",
+      "counter_signals": [
+        "**When a plain loop beats parametrize:** cases that share one expensive setup, or assertions that accumulate across cases, read better as a single test iterating a local table. Parametrize's payoff is per-case isolation, selection, and ids; when none of that is needed, the decorator is ceremony."
+      ]
     },
     {
       "rule": "value-independent-oracles",
@@ -145,7 +176,10 @@
       ],
       "incorrect": "def test_shipping_cost():\n    order = make_order(weight_kg=12, zone=\"B\")\n    expected = BASE_RATE[order.zone] + order.weight_kg * PER_KG[order.zone]  # same formula as the code\n    assert shipping_cost(order) == expected",
       "correct": "def test_shipping_cost_zone_b():\n    order = make_order(weight_kg=12, zone=\"B\")\n    assert shipping_cost(order) == Decimal(\"41.80\")   # 5.80 base + 12 \u00d7 3.00, derived by hand\n\ndef test_shipping_cost_monotonic_in_weight():\n    light = make_order(weight_kg=1, zone=\"B\")\n    heavy = make_order(weight_kg=30, zone=\"B\")\n    assert shipping_cost(heavy) > shipping_cost(light)  # holds whatever the rates are",
-      "explanation": "A test whose expected value is computed by the same logic it's testing proves the code equals itself. When the implementation is wrong, the expectation is wrong the same way, and the test passes. Expected values must come from an independent source: a hand-derived constant, a fixture with known semantics, an invariant that holds regardless of the answer, or a reference implementation that won't share the bug."
+      "explanation": "A test whose expected value is computed by the same logic it's testing proves the code equals itself. When the implementation is wrong, the expectation is wrong the same way, and the test passes. Expected values must come from an independent source: a hand-derived constant, a fixture with known semantics, an invariant that holds regardless of the answer, or a reference implementation that won't share the bug.",
+      "counter_signals": [
+        "**When a hand-derived constant is brittle** (large or structured outputs), assert properties instead: length, ordering, round-trip (`parse(serialize(x)) == x`), or comparison against a trivially-correct reference implementation. And sharing a named constant between code and test (`PER_KG`, a tax table) is not self-oracle: the test then pins the *formula's use* of the constant, which is often exactly the contract \u2014 the trap is re-running the whole computation."
+      ]
     },
     {
       "rule": "value-observable-contracts",
@@ -158,7 +192,11 @@
       ],
       "incorrect": "def test_render_invoice():\n    invoice = make_invoice(items=3)\n    result = render_invoice(invoice)\n    assert result is not None          # any non-crashing implementation passes\n    assert isinstance(result, str)     # so does one that renders garbage",
       "correct": "def test_render_invoice_totals_include_tax():\n    invoice = make_invoice(items=[Item(price=100, tax_rate=0.2)])\n    result = render_invoice(invoice)\n    assert \"Total: 120.00\" in result   # wrong tax math fails this line",
-      "explanation": "A committed test must protect a named, observable behavior with an assertion that fails for a plausible regression. Tests that merely *execute* code \u2014 call a function, assert the result \"is not None\", check no exception was raised \u2014 are development probes: useful while writing the code, weight once committed. They pass under almost any regression, so they defend nothing, while still costing runtime, maintenance, and reviewer attention."
+      "explanation": "A committed test must protect a named, observable behavior with an assertion that fails for a plausible regression. Tests that merely *execute* code \u2014 call a function, assert the result \"is not None\", check no exception was raised \u2014 are development probes: useful while writing the code, weight once committed. They pass under almost any regression, so they defend nothing, while still costing runtime, maintenance, and reviewer attention.",
+      "counter_signals": [
+        "Before committing a test, name the contract it defends in the test name. If the honest name is `test_render_invoice_runs`, delete the test \u2014 or find the real assertion. Probes written to exercise new code during development are fine as a workflow; the discipline is deleting them before commit instead of promoting them to `skip`, `xfail`, or a literal `assert True`.",
+        "One deliberate exception: an explicitly-named smoke contract \u2014 `test_all_modules_import`, `test_app_starts_with_default_config` \u2014 where \"does not crash\" *is* the observable contract (import cycles, missing deps, broken entry points are the regressions it defends). The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe."
+      ]
     },
     {
       "rule": "value-one-behavior-per-test",
@@ -171,7 +209,11 @@
       ],
       "incorrect": "def test_user_service():\n    user = service.create(name=\"ada\")\n    assert user.id is not None\n    service.rename(user.id, \"grace\")\n    assert service.get(user.id).name == \"grace\"     # if this fails...\n    service.delete(user.id)\n    assert service.get(user.id) is None             # ...deletion is never exercised",
       "correct": "def test_create_assigns_id():\n    assert service.create(name=\"ada\").id is not None\n\ndef test_rename_persists():\n    user = service.create(name=\"ada\")\n    service.rename(user.id, \"grace\")\n    assert service.get(user.id).name == \"grace\"\n\ndef test_delete_removes_user():\n    user = service.create(name=\"ada\")\n    service.delete(user.id)\n    assert service.get(user.id) is None",
-      "explanation": "A test that bundles independently-failing behaviors reports only the first break: everything after the failing assert is unexercised, so one regression masks another. And the test name stops describing what failed. Split when the phases can fail independently; keep a single test when the asserts describe one cohesive outcome."
+      "explanation": "A test that bundles independently-failing behaviors reports only the first break: everything after the failing assert is unexercised, so one regression masks another. And the test name stops describing what failed. Split when the phases can fail independently; keep a single test when the asserts describe one cohesive outcome.",
+      "counter_signals": [
+        "A test that bundles independently-failing behaviors reports only the first break: everything after the failing assert is unexercised, so one regression masks another. And the test name stops describing what failed. Split when the phases can fail independently; keep a single test when the asserts describe one cohesive outcome.",
+        "Multiple asserts are fine when they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs \"and\". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change \u2014 keeping them for test-count or coverage optics preserves numbers, not protection."
+      ]
     }
   ]
 }

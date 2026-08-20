@@ -46,3 +46,5 @@ Scope the `async with` to the real lifetime of the resource: a client per reques
 For multiple resources acquired together, `contextlib.ExitStack` closes all of them in reverse order even if one acquisition raises. Write your own with `@contextlib.contextmanager` (or `@asynccontextmanager`) when a resource isn't already a context manager — `yield` the resource inside a `try` / `finally`.
 
 If you're writing `try` / `finally` to call `close()`, `release()`, or `disconnect()`, you almost certainly want `with` instead.
+
+**When manual lifetime is the design:** a resource that must outlive the acquiring scope — a client returned from a factory, a connection stored on a service — can't be `with`-scoped at acquisition. Ownership transfers instead, and the *owner* provides the deterministic close (`close()`/`aclose()` in its own shutdown path). The rule's target is locally-scoped acquire-use-release, where `with` is strictly better.

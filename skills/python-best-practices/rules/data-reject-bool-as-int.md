@@ -31,4 +31,6 @@ def set_page_size(value: object) -> int:
     return value
 ```
 
-Static checkers won't flag any of this — `bool` is a valid `int` to them by design. The discipline lives in runtime validation. Coercing validators may convert rather than reject; use a strict integer type at the model boundary when `true`-as-`1` must not slip through. The same subtype relationship is why `sum(flags)` counts `True`s — useful when intentional, surprising when not.
+Static checkers won't flag any of this — `bool` is a valid `int` to them by design. The discipline lives in runtime validation. Coercing validators may convert rather than reject; use a strict integer type at the model boundary when `true`-as-`1` must not slip through.
+
+**When the subtyping is the feature:** `sum(flags)` counting `True`s, boolean indexing, and arithmetic on comparison results are idiomatic uses of the same relationship — reject bools at *validation* boundaries; don't blanket-ban them from arithmetic.

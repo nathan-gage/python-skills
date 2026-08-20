@@ -36,3 +36,5 @@ def test_submit_order(mocker):
 ```
 
 The rule falls out of Python's name binding, so the *code style* determines the patch target: code that does `import payments.gateway` and calls `payments.gateway.charge(...)` looks the name up on the module object at call time, so patching `payments.gateway.charge` works from anywhere. Either way, the question to ask is "which namespace does the code under test read this name from at call time?" — patch that one. (This is the mechanics rule; whether the boundary *should* be mocked at all is `mock-stable-boundaries`.)
+
+**When patching isn't the fix:** a test that needs a stack of patches to reach its subject is measuring the code's wiring, not its behavior — the code is saying its dependencies aren't injectable. Pass the collaborator as a parameter and patch nothing (see `mock-stable-boundaries`); reserve `patch` for names that genuinely can't be injected.

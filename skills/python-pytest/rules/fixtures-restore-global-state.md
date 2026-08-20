@@ -30,3 +30,5 @@ def test_uses_staging_endpoint(monkeypatch, tmp_path):
 ```
 
 `monkeypatch` records prior state — including "was not set" — and restores it in teardown regardless of outcome; `tmp_path` gives an isolated directory instead of a shared scratch location. The same applies to registries and class attributes (`monkeypatch.setattr`, `monkeypatch.setitem`) and to hand-rolled fixtures: put the restore in the fixture's teardown (`yield` + `finally`), never in the test body. If a test needs a *clean* environment rather than one extra variable, `monkeypatch.delenv(..., raising=False)` each variable the code reads — inheriting the developer's shell into assertions is its own order dependency.
+
+**Scope:** the rule targets state tests *mutate*. Process-global state that is immutable for the suite's lifetime — a compiled schema loaded once, a read-only settings snapshot — needs no per-test restoration; wrapping it in teardown machinery is ceremony without isolation value.

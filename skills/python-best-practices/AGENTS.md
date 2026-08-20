@@ -356,6 +356,8 @@ class DebouncedAction:
 
 A closure returning `(trigger, clear)` is the right alternative when no one needs to inspect, type, serialize, or mock the state — the surface is just the two callables. Module-level globals deserve more pushback than either; prefer dependency injection.
 
+**Scope is a dial, not a mandate:** a small class where every method genuinely participates in the state's lifecycle isn't "too wide" — the smell is methods that *could* touch state they have no business with. Don't shrink scope at the cost of a contorted interface.
+
 ### 1.6 Never Use Mutable Default Arguments
 
 **Impact: CRITICAL (prevents shared-state bugs across calls and instances)**
@@ -522,7 +524,9 @@ def set_page_size(value: object) -> int:
     return value
 ```
 
-Static checkers won't flag any of this — `bool` is a valid `int` to them by design. The discipline lives in runtime validation. Coercing validators may convert rather than reject; use a strict integer type at the model boundary when `true`-as-`1` must not slip through. The same subtype relationship is why `sum(flags)` counts `True`s — useful when intentional, surprising when not.
+Static checkers won't flag any of this — `bool` is a valid `int` to them by design. The discipline lives in runtime validation. Coercing validators may convert rather than reject; use a strict integer type at the model boundary when `true`-as-`1` must not slip through.
+
+**When the subtyping is the feature:** `sum(flags)` counting `True`s, boolean indexing, and arithmetic on comparison results are idiomatic uses of the same relationship — reject bools at *validation* boundaries; don't blanket-ban them from arithmetic.
 
 ### 1.10 Use Discriminated Unions Over Optional Bags
 
@@ -581,6 +585,8 @@ Now `match payment.status:` narrows exactly, `transaction_id` is non-optional on
 **Null over sentinels:** don't invent `"none"` action values. `pending_action: PendingAction | None` beats `pending_action: Literal["none", "confirm-address", "select-shipping"]`. Absence is not an action.
 
 **Related:** `data-explicit-variants` applies the same idea at the behavior level — split a mode-flag class into one class per mode. Use discriminated unions when the variants are data; use explicit variants when the variants have meaningfully different methods.
+
+**When a bag is fine:** two or three optionals whose presence genuinely varies independently aren't variants in disguise — tagging them adds machinery without collapsing any impossible states. Reach for the union when field combinations are constrained; keep the flat model when they truly aren't.
 
 ### 1.11 Use Timezone-Aware Datetimes at Boundaries
 
@@ -1063,6 +1069,8 @@ def process_step(step: Step) -> Result:
 
 When `Step` becomes `InitStep | RunStep | DoneStep | PausedStep`, the checker reports that `step` is `PausedStep` at the `assert_never` call. Use it for closed sums: `Literal` unions, sealed dataclass hierarchies, discriminated unions, enum dispatch. On Python <3.11, import from `typing_extensions` — semantics are identical and both mypy and pyright recognize either source.
 
+**When the union is open** — plugin-provided types, forward-compatible protocol messages — exhaustiveness is the wrong goal: a default branch that handles unknown variants gracefully *is* the design, and `assert_never` would turn every extension into a type error.
+
 ### 2.10 Use raise ... from to Preserve Exception Causality
 
 **Impact: LOW-MEDIUM (explicit `__cause__` chain vs implicit `__context__`; often invisible to end callers)**
@@ -1157,6 +1165,8 @@ Scope the `async with` to the real lifetime of the resource: a client per reques
 For multiple resources acquired together, `contextlib.ExitStack` closes all of them in reverse order even if one acquisition raises. Write your own with `@contextlib.contextmanager` (or `@asynccontextmanager`) when a resource isn't already a context manager — `yield` the resource inside a `try` / `finally`.
 
 If you're writing `try` / `finally` to call `close()`, `release()`, or `disconnect()`, you almost certainly want `with` instead.
+
+**When manual lifetime is the design:** a resource that must outlive the acquiring scope — a client returned from a factory, a connection stored on a service — can't be `with`-scoped at acquisition. Ownership transfers instead, and the *owner* provides the deterministic close (`close()`/`aclose()` in its own shutdown path). The rule's target is locally-scoped acquire-use-release, where `with` is strictly better.
 
 ### 2.12 Validate Input at System Boundaries
 
@@ -1974,6 +1984,8 @@ class ToolCall:
 **Why it matters:** redundancy means every mutation site has two (or more) places to update. Skipping one creates a drift bug that's only visible when the fields disagree.
 
 **Related:** `data-derive-dont-store` is the same idea at the field level — if one field is computable from another, compute it, don't store it.
+
+**Keep nesting that means something:** protocol envelopes, version boundaries, independently-evolving lifecycles, provenance wrappers, and genuine one-to-many cardinality are structure, not redundancy. The invariant this rule protects is *one authoritative source per fact* — not maximal flatness.
 
 ### 4.5 Keep Old Names as Deprecated Aliases
 

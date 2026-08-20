@@ -37,3 +37,5 @@ def process_step(step: Step) -> Result:
 ```
 
 When `Step` becomes `InitStep | RunStep | DoneStep | PausedStep`, the checker reports that `step` is `PausedStep` at the `assert_never` call. Use it for closed sums: `Literal` unions, sealed dataclass hierarchies, discriminated unions, enum dispatch. On Python <3.11, import from `typing_extensions` — semantics are identical and both mypy and pyright recognize either source.
+
+**When the union is open** — plugin-provided types, forward-compatible protocol messages — exhaustiveness is the wrong goal: a default branch that handles unknown variants gracefully *is* the design, and `assert_never` would turn every extension into a type error.

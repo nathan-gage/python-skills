@@ -28,4 +28,6 @@ def test_refund_negative_quantity():
     assert refund(make_order(), quantity=-1).status == "rejected"
 ```
 
-When the feature lands, the run fails with `[XPASS(strict)]`, and the fix is to delete the marker — the test graduates to a normal regression test. Set `xfail_strict = true` in project config to make strict the default. Two boundaries to respect: `xfail` documents a *deterministic* known failure, never an intermittent one (that's flake-masking — see `determinism-no-flake-masking`); and neither `xfail` nor `skip` is a parking spot for development probes that never asserted anything (see `value-observable-contracts` — those get deleted).
+When the feature lands, the run fails with `[XPASS(strict)]`, and the fix is to delete the marker — the test graduates to a normal regression test. Set `xfail_strict = true` in project config to make strict the default.
+
+**Scope:** `xfail` documents a *deterministic* known failure, never an intermittent one (that's flake-masking — see `determinism-no-flake-masking`); neither `xfail` nor `skip` is a parking spot for development probes that never asserted anything (see `value-observable-contracts`). Non-strict has one honest, time-boxed use: a compatibility matrix where a case is *expected* to vary across platform or dependency versions and both outcomes are informative while support lands — with an owner and an exit date, not as a permanent state.

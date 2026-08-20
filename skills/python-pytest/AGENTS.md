@@ -108,7 +108,9 @@ def test_shipping_cost_monotonic_in_weight():
     assert shipping_cost(heavy) > shipping_cost(light)  # holds whatever the rates are
 ```
 
-The constant came from working the example on paper; the invariant survives rate changes. When a hand-derived value would be brittle (large outputs), assert properties instead: length, ordering, round-trip (`parse(serialize(x)) == x`), or comparison against a trivially-correct reference implementation. Snapshot assertions are a last resort for structured output — they catch *change*, not *correctness*, and every intentional change costs a snapshot review.
+The constant came from working the example on paper; the invariant survives rate changes. Snapshot assertions are a last resort for structured output — they catch *change*, not *correctness*, and every intentional change costs a snapshot review.
+
+**When a hand-derived constant is brittle** (large or structured outputs), assert properties instead: length, ordering, round-trip (`parse(serialize(x)) == x`), or comparison against a trivially-correct reference implementation. And sharing a named constant between code and test (`PER_KG`, a tax table) is not self-oracle: the test then pins the *formula's use* of the constant, which is often exactly the contract — the trap is re-running the whole computation.
 
 ### 1.3 One Cohesive Behavior Per Test
 
@@ -216,6 +218,8 @@ async def test_worker_processes_job():
 
 The timeout is generous because it's a *failure bound*, not a performance claim — it only matters when the test is already broken. The same applies to threads (`threading.Event`, `Barrier`) and to polling an observable condition with a deadline when no hook exists. Never assert on elapsed-time thresholds to prove ordering ("the second task finished within 50 ms") — host speed is not part of the contract. If the code under test offers no way to observe completion, that's missing design, and the test just found it.
 
+**When time itself is under test** (a debouncer's quiescence window, a TTL), inject a controllable clock and advance it deterministically — that tests the time logic without betting on the scheduler. If the component can't take a clock, one bounded real-time wait on its observable output is the fallback: a deadline, never a proof of ordering.
+
 ### 2.3 Use Strict xfail So Unexpected Passes Fail
 
 **Impact: MEDIUM (non-strict xfail silently absorbs both outcomes forever)**
@@ -240,7 +244,9 @@ def test_refund_negative_quantity():
     assert refund(make_order(), quantity=-1).status == "rejected"
 ```
 
-When the feature lands, the run fails with `[XPASS(strict)]`, and the fix is to delete the marker — the test graduates to a normal regression test. Set `xfail_strict = true` in project config to make strict the default. Two boundaries to respect: `xfail` documents a *deterministic* known failure, never an intermittent one (that's flake-masking — see `determinism-no-flake-masking`); and neither `xfail` nor `skip` is a parking spot for development probes that never asserted anything (see `value-observable-contracts` — those get deleted).
+When the feature lands, the run fails with `[XPASS(strict)]`, and the fix is to delete the marker — the test graduates to a normal regression test. Set `xfail_strict = true` in project config to make strict the default.
+
+**Scope:** `xfail` documents a *deterministic* known failure, never an intermittent one (that's flake-masking — see `determinism-no-flake-masking`); neither `xfail` nor `skip` is a parking spot for development probes that never asserted anything (see `value-observable-contracts`). Non-strict has one honest, time-boxed use: a compatibility matrix where a case is *expected* to vary across platform or dependency versions and both outcomes are informative while support lands — with an owner and an exit date, not as a permanent state.
 
 ## 3. Fixtures & Isolation
 
@@ -349,6 +355,8 @@ def test_uses_staging_endpoint(monkeypatch, tmp_path):
 
 `monkeypatch` records prior state — including "was not set" — and restores it in teardown regardless of outcome; `tmp_path` gives an isolated directory instead of a shared scratch location. The same applies to registries and class attributes (`monkeypatch.setattr`, `monkeypatch.setitem`) and to hand-rolled fixtures: put the restore in the fixture's teardown (`yield` + `finally`), never in the test body. If a test needs a *clean* environment rather than one extra variable, `monkeypatch.delenv(..., raising=False)` each variable the code reads — inheriting the developer's shell into assertions is its own order dependency.
 
+**Scope:** the rule targets state tests *mutate*. Process-global state that is immutable for the suite's lifetime — a compiled schema loaded once, a read-only settings snapshot — needs no per-test restoration; wrapping it in teardown machinery is ceremony without isolation value.
+
 ## 4. Mocking
 
 **Impact: MEDIUM-HIGH**
@@ -382,7 +390,7 @@ def test_create_user_body_wire_format(fake_transport):
     assert fake_transport.last_request.body == b'{"name": "Ada", "joined": "2026-03-01"}'
 ```
 
-If the exact byte string is too brittle, parse the wire form back and assert on the parsed *strings* (`parse_qs(query)["include_disabled"] == ["false"]`) — still the peer's view, minus ordering sensitivity. The principle generalizes: whenever a test guards compatibility with a system that parses text or bytes, the assertion belongs on the text or bytes. This is also why `mock-stable-boundaries` fakes the transport rather than the client — mock the client and there is no wire representation left to assert on.
+**Scope:** assert exact bytes only where the bytes *are* the contract — signatures, canonical serialization, cache keys, golden protocol fixtures. Otherwise parse the wire form back and assert on the parsed *strings* (`parse_qs(query)["include_disabled"] == ["false"]`) — still the peer's view, minus ordering sensitivity. The principle generalizes: whenever a test guards compatibility with a system that parses text or bytes, the assertion belongs on the text or bytes. This is also why `mock-stable-boundaries` fakes the transport rather than the client — mock the client and there is no wire representation left to assert on.
 
 ### 4.2 Mock at Stable IO Boundaries, Not the Behavior Under Test
 
@@ -448,6 +456,8 @@ def test_submit_order(mocker):
 ```
 
 The rule falls out of Python's name binding, so the *code style* determines the patch target: code that does `import payments.gateway` and calls `payments.gateway.charge(...)` looks the name up on the module object at call time, so patching `payments.gateway.charge` works from anywhere. Either way, the question to ask is "which namespace does the code under test read this name from at call time?" — patch that one. (This is the mechanics rule; whether the boundary *should* be mocked at all is `mock-stable-boundaries`.)
+
+**When patching isn't the fix:** a test that needs a stack of patches to reach its subject is measuring the code's wiring, not its behavior — the code is saying its dependencies aren't injectable. Pass the collaborator as a parameter and patch nothing (see `mock-stable-boundaries`); reserve `patch` for names that genuinely can't be injected.
 
 ## 5. Structure & Execution
 
@@ -556,6 +566,8 @@ def test_set_limit_rejects_negative():
 ```
 
 `id=` names make a failing case self-describing in the report. When case lists are generated, guard the degenerate outcome: an accidentally-empty parameter set skips silently by default — set `empty_parameter_set_mark = fail_at_collect` so a filter bug that produces zero cases fails collection instead of green-lighting nothing.
+
+**When a plain loop beats parametrize:** cases that share one expensive setup, or assertions that accumulate across cases, read better as a single test iterating a local table. Parametrize's payoff is per-case isolation, selection, and ids; when none of that is needed, the decorator is ceremony.
 
 
 ## References

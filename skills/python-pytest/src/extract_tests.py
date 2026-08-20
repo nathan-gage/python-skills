@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Extract Incorrect/Correct example pairs from rule files into test-cases.json.
+"""Extract rule examples and counter-signals into test-cases.json.
 
-The output is consumed by LLM eval pipelines that score whether an agent can
-identify the failure mode shown in the Incorrect example, and produce code
-matching the spirit of the Correct example.
+The output is consumed by LLM eval pipelines. The `correct` block is ONE
+valid instance under the rule's conditions — not a canonical target. Score
+whether the agent (a) recognizes the failure mode in `incorrect`, (b) applies
+the rule only when its conditions hold, and (c) PRESERVES code matching the
+`counter_signals` passages. Do not score similarity to the `correct` block.
 
 Schema (per entry):
     {
@@ -13,7 +15,8 @@ Schema (per entry):
       "tags": ["tag1", "tag2"],
       "incorrect": "{first incorrect code block, language=python}",
       "correct": "{first correct code block, language=python}",
-      "explanation": "{first paragraph of the rule body}"
+      "explanation": "{first paragraph of the rule body}",
+      "counter_signals": ["{prose paragraphs saying when NOT to apply the rule}"]
     }
 
 Rules without a clean Incorrect/Correct pair are skipped with a warning.
@@ -31,6 +34,8 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+from counter_signals import counter_signal_paragraphs
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 INCORRECT_BLOCK_RE = re.compile(
@@ -52,6 +57,7 @@ class TestCase:
     incorrect: str
     correct: str
     explanation: str
+    counter_signals: list[str]
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, str], str] | None:
@@ -104,6 +110,7 @@ def extract(path: Path) -> TestCase | None:
     tags_raw = frontmatter.get("tags", "")
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
     explanation = first_paragraph(body)
+    counter_signals = counter_signal_paragraphs(body)
 
     return TestCase(
         rule=path.stem,
@@ -113,6 +120,7 @@ def extract(path: Path) -> TestCase | None:
         incorrect=incorrect_match.group(1).rstrip(),
         correct=correct_match.group(1).rstrip(),
         explanation=explanation,
+        counter_signals=counter_signals,
     )
 
 
@@ -144,11 +152,17 @@ def main() -> int:
                 "incorrect": case.incorrect,
                 "correct": case.correct,
                 "explanation": case.explanation,
+                "counter_signals": case.counter_signals,
             }
         )
 
     payload = {
         "generated_by": "src/extract_tests.py",
+        "scoring": (
+            "The correct block is one valid instance under the rule's conditions, "
+            "not a canonical target. Score condition-aware application and "
+            "preservation of code matching counter_signals, not similarity to correct."
+        ),
         "count": len(cases),
         "cases": cases,
     }

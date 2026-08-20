@@ -42,4 +42,4 @@ class Report:
         return compute_stats(self.rows)
 ```
 
-**Caveats:** not thread-safe — two threads racing on first access can both run the getter. `__slots__` classes without `"__dict__"` raise `TypeError` at first access. `copy.copy` carries the cached value over; clear it manually if the copy's inputs differ. For module-level pure functions, use `functools.lru_cache` / `functools.cache` instead (see `perf-lru-cache-pure-fns`) — `@cached_property` is the per-instance equivalent.
+**Caveats:** thread safety changed in 3.12. On 3.8–3.11, a class-wide lock serialized first access across *all* instances of the class — a contention hazard when many instances compute the property concurrently. On 3.12+, the lock is gone: two threads racing on first access can both run the getter, and the second write wins. `__slots__` classes without `"__dict__"` raise `TypeError` at first access. `copy.copy` carries the cached value over; clear it manually if the copy's inputs differ. For module-level pure functions, use `functools.lru_cache` / `functools.cache` instead (see `perf-lru-cache-pure-fns`) — `@cached_property` is the per-instance equivalent.

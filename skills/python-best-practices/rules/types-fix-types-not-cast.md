@@ -57,4 +57,6 @@ def handle_success(result: ApiResponse) -> str:
 
 Even then, `isinstance` or a `TypeGuard` function is usually cleaner. Reserve `cast` for cases where those don't fit.
 
+A second legitimate case: third-party stubs that are verifiably wrong. Perform the real runtime operation first, then `cast` the result to the documented type at that one boundary — with a comment naming the stub defect — instead of spreading ignores through every consumer.
+
 **Rule of thumb:** before reaching for `cast`, ask whether the source type should be narrower. 8 times out of 10, yes.

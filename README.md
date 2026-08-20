@@ -8,17 +8,19 @@ Skills follow the [Agent Skills](https://agentskills.io/) format.
 
 ### python-best-practices
 
-Python software engineering guidelines derived from real PR review patterns. 70 rules across 8 categories, prioritized by impact. A rule match is a signal, not a verdict — most rules are design preferences for new code, not bugs to fix across the repo.
+Python software engineering guidelines derived from real PR review patterns. 79 rules across 9 categories, prioritized by impact. A rule match is a signal, not a verdict — most rules are design preferences for new code, not bugs to fix across the repo.
 
 **Use when:**
 - Writing new Python modules, functions, classes, or data models
 - Reviewing Python code for type safety, API clarity, or maintainability
 - Refactoring dataclasses, Pydantic models, or state-management patterns
 - Designing service interfaces, Protocol boundaries, or exception hierarchies
+- Writing or reviewing asyncio code — blocking calls, task lifecycles, stream cleanup
 
 **Categories covered (typical impact; individual rules may differ):**
 - Data Modeling (High) — mutable defaults, derive-don't-store, discriminated unions, explicit variants, timezone-aware datetimes
 - Error Handling (Medium-High) — specific exceptions, context managers, preserved cancellation, traceback-preserving logs
+- Concurrency & Async (Medium-High) — event-loop blocking, task ownership, bounded fan-out, async generator cleanup
 - Type Safety (Medium-High) — precise types over `Any`, fix type errors rather than ignore, `isinstance` over `hasattr`
 - API Design (Medium) — keyword-only params, required-before-optional, no boolean-flag soup, private underscores
 - Code Simplification (Low-Medium) — comprehensions, early returns, Pythonic idioms
@@ -26,19 +28,30 @@ Python software engineering guidelines derived from real PR review patterns. 70 
 - Naming (Low-Medium) — specific names, consistent terminology, no type suffixes
 - Imports & Structure (Low) — top-of-file imports, no import-time side effects, optional dependency handling
 
+### python-pytest
+
+Pytest discipline for test suites. 15 rules across 5 categories — test value (observable contracts, independent oracles), determinism (event-based synchronization, strict xfail), fixture isolation, mocking boundaries, and suite structure.
+
+**Use when:**
+- Writing or reviewing pytest tests and fixtures
+- Debugging flaky, order-dependent, or falsely-green tests
+- Deciding what deserves to be a committed test
+- Configuring pytest's plugin surface
+
 ## Installation
 
 ```bash
 npx skills add nathan-gage/python-best-practices
+npx skills add nathan-gage/python-pytest
 ```
 
 Or copy directly into Claude Code:
 
 ```bash
-cp -r skills/python-best-practices ~/.claude/skills/
+cp -r skills/python-best-practices skills/python-pytest ~/.claude/skills/
 ```
 
-For other agent harnesses, point the harness at `skills/python-best-practices/`. The skill is self-contained.
+For other agent harnesses, point the harness at the skill directory under `skills/`. Each skill is self-contained.
 
 ## Usage
 

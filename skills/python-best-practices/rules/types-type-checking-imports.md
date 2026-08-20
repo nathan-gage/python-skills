@@ -3,6 +3,7 @@ title: Use TYPE_CHECKING for Optional Dependencies
 impact: LOW-MEDIUM
 impactDescription: preserves type hints without forcing the import
 tags: types, imports, optional-dependencies, typing
+references: https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING, https://docs.python.org/3/library/typing.html#typing.get_type_hints
 ---
 
 ## Use `TYPE_CHECKING` for Optional Dependencies
@@ -49,6 +50,8 @@ class AnthropicProvider:
 ```
 
 With `from __future__ import annotations`, all annotations are strings at runtime — so `anthropic.Client` in the signature doesn't need the import to resolve. The checker still resolves it during type-check because it sees the `TYPE_CHECKING` branch.
+
+**Exception — annotations consumed at runtime:** anything that *evaluates* annotations at runtime needs the name importable at runtime: Pydantic model fields, FastAPI/Typer signatures, any call to `typing.get_type_hints()`. Moving such an import under `TYPE_CHECKING` fails later with `NameError: name '...' is not defined` — raised where the framework resolves the annotation, far from the import you moved. Defer only imports whose annotations nothing inspects at runtime.
 
 **Pattern for optional-dep packages:**
 

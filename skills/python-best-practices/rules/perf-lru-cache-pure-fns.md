@@ -3,7 +3,7 @@ title: Use functools.lru_cache for Pure Functions
 impact: LOW-MEDIUM
 impactDescription: trades memory for CPU on repeatable computations
 tags: perf, lru-cache, caching, functools
-references: https://docs.python.org/3/library/functools.html#functools.lru_cache, https://docs.python.org/3/library/functools.html#functools.cache
+references: https://docs.python.org/3/library/functools.html#functools.lru_cache, https://docs.python.org/3/library/functools.html#functools.cache, https://docs.python.org/3/faq/programming.html#how-do-i-cache-method-calls
 ---
 
 ## Use `functools.lru_cache` for Pure Functions
@@ -61,4 +61,4 @@ No size limit. Good when the key space is naturally small (like schema names) an
 
 If `@lru_cache` doesn't fit (unhashable args, multi-level keys, time-based invalidation), build a module-level `dict` cache — but name it clearly and document the invalidation strategy. Uncontrolled hand-rolled caches leak memory.
 
-**For instance methods, prefer `@cached_property`** when the "arguments" are just `self` — see `simplify-cached-property`.
+**Watch instance retention on cached methods:** on an instance method, the cache key includes `self`, so the cache holds a strong reference to every instance it has seen — released only on eviction or `cache_clear()`. A bounded LRU retains up to `maxsize` instances; `@cache` / `maxsize=None` retains all of them for the life of the process. When the value depends only on `self`, `@cached_property` (see `simplify-cached-property`) stores the result on the instance instead, so it's collected with the instance.

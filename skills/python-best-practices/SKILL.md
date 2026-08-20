@@ -1,16 +1,16 @@
 ---
 name: python-best-practices
-description: Python software engineering guidelines from real PR review patterns. This skill should be used when writing, reviewing, or refactoring Python code — especially dataclasses, service interfaces, error handling, and type annotations. Triggers on tasks involving Python modules, API design, data modeling, type safety, exception handling, or refactoring for maintainability.
+description: Python software engineering guidelines from real PR review patterns. This skill should be used when writing, reviewing, or refactoring Python code — especially dataclasses, service interfaces, error handling, async concurrency, and type annotations. Triggers on tasks involving Python modules, API design, data modeling, type safety, exception handling, async/await code, or refactoring for maintainability.
 license: MIT
 metadata:
   author: python-best-practices
-  version: "1.3.0"
+  version: "1.4.0"
   pythonVersion: ">=3.11"
 ---
 
 # Python Best Practices
 
-Guidelines for writing and reviewing Python. 70 rules across 8 categories, prioritized by impact.
+Guidelines for writing and reviewing Python. 79 rules across 9 categories, prioritized by impact.
 
 A rule match is a signal, not a verdict. Most rules are design preferences for new code, not bugs to fix across the repo — check the rule's impact level before flagging in review or refactoring stable code.
 
@@ -37,6 +37,7 @@ Rules assume Python 3.11+. Rules depending on higher versions call it out inline
 - `zoneinfo` — 3.9+
 - Union types in `isinstance()` — 3.10+
 - `assert_never` — 3.11+ (backport via `typing_extensions`)
+- PEP 695 `type` statement and generic syntax — 3.12+ (noted inline in `types-modern-syntax`)
 
 Rules tagged `applicability:pydantic` are Pydantic-specific.
 
@@ -46,12 +47,13 @@ Rules tagged `applicability:pydantic` are Pydantic-specific.
 |----------|----------|--------|--------|
 | 1 | Data Modeling | HIGH | `data-` |
 | 2 | Error Handling | MEDIUM-HIGH | `error-` |
-| 3 | Type Safety | MEDIUM-HIGH | `types-` |
-| 4 | API Design | MEDIUM | `api-` |
-| 5 | Code Simplification | LOW-MEDIUM | `simplify-` |
-| 6 | Performance | LOW-MEDIUM | `perf-` |
-| 7 | Naming | LOW-MEDIUM | `naming-` |
-| 8 | Imports & Structure | LOW | `imports-` |
+| 3 | Concurrency & Async | MEDIUM-HIGH | `async-` |
+| 4 | Type Safety | MEDIUM-HIGH | `types-` |
+| 5 | API Design | MEDIUM | `api-` |
+| 6 | Code Simplification | LOW-MEDIUM | `simplify-` |
+| 7 | Performance | LOW-MEDIUM | `perf-` |
+| 8 | Naming | LOW-MEDIUM | `naming-` |
+| 9 | Imports & Structure | LOW | `imports-` |
 
 Section impact is a typical-case label; individual rules range one level above or below — check the rule file.
 
@@ -70,6 +72,7 @@ Section impact is a typical-case label; individual rules range one level above o
 - `data-sentinel-when-none-is-valid` — Private sentinel when `None` is a meaningful value
 - `data-newtype-for-ids` — `NewType('UserId', str)` so IDs aren't interchangeable
 - `data-delete-dead-variants` — Remove union arms that aren't constructed
+- `data-reject-bool-as-int` — `bool` subclasses `int`; reject it explicitly before numeric checks
 
 ### Error Handling (`error-`)
 
@@ -84,6 +87,14 @@ Section impact is a typical-case label; individual rules range one level above o
 - `error-inherit-base-exceptions` — New exceptions inherit existing bases for compatibility
 - `error-log-exception-context` — `logger.exception(...)` inside `except`; keep the traceback in the log
 - `error-repr-in-messages` — `f"tool {name!r}"` for identifiers in error text
+- `error-match-types-not-messages` — Classify by exception type and status code, never message substrings
+
+### Concurrency & Async (`async-`)
+
+- `async-no-blocking-event-loop` — No sync I/O, sleeps, or heavy CPU in `async def`; `asyncio.to_thread` for blocking calls
+- `async-own-your-tasks` — `TaskGroup` by default; hold references and cancel-then-drain longer-lived tasks
+- `async-bound-concurrency` — Semaphore/queue bounds when fan-out scales with input size
+- `async-generator-cleanup` — `aclosing()` / explicit `aclose()` when leaving an async generator early
 
 ### Type Safety (`types-`)
 
@@ -97,6 +108,8 @@ Section impact is a typical-case label; individual rules range one level above o
 - `types-trust-the-checker` — Drop runtime checks the types already enforce
 - `types-remove-redundant-optional` — Drop `| None` when values are guaranteed present
 - `types-type-checking-imports` — `if TYPE_CHECKING:` for optional or heavy imports
+- `types-modern-syntax` — `X | None`, `list[str]`; not `Optional` / `Union` / `typing.List`
+- `types-sequence-over-list-params` — `Sequence` / `Mapping` for read-only params; `list` is invariant
 
 ### API Design (`api-`)
 
@@ -150,6 +163,7 @@ Section impact is a typical-case label; individual rules range one level above o
 - `imports-scope-helpers-to-usage` — Define helpers near where they're used
 - `imports-remove-unused` — Delete unused imports
 - `imports-no-duplicates` — One import per name
+- `imports-lightweight-init` — Parent `__init__.py` runs on every submodule import; keep heavy/optional deps out
 
 ## How to Use
 

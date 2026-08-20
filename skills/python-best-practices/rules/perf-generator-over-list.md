@@ -29,3 +29,5 @@ def count_errors(path: Path) -> int:
 ```
 
 Reach for a generator when the input is large, unbounded, or the consumer can stop early (`any()`, `next()`, `break`). Reach for a list when you need `len()`, iterate more than once, need random access, or will sort the whole sequence. A generator exhausted by the first loop reading zero on the second is a real bug, not a perf issue. `itertools` (`chain`, `islice`, `takewhile`, `groupby`) yields lazily for pipelines that stay streaming.
+
+Streaming only helps if the whole pipeline streams: a generator feeding an accumulator, cache, or context object that retains every item re-materializes the data one hop downstream. When memory is the point, audit what each stage retains and keep only the fields the next stage needs.

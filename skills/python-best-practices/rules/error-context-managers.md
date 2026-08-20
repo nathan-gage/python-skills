@@ -29,14 +29,19 @@ def write_report(path: Path, rows: list[Row]) -> None:
             f.write(format_row(row))
 ```
 
-**Async clients use `async with`:**
+**Async clients use `async with`, scoped to the client's real lifetime:**
 
 ```python
-async def fetch_user(user_id: str) -> User:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"/users/{user_id}")
-        return User.model_validate_json(response.content)
+async def sync_users(user_ids: list[str]) -> list[User]:
+    async with httpx.AsyncClient() as client:   # one client for the whole batch
+        return [await fetch_user(client, uid) for uid in user_ids]
+
+async def fetch_user(client: httpx.AsyncClient, user_id: str) -> User:
+    response = await client.get(f"/users/{user_id}")
+    return User.model_validate_json(response.content)
 ```
+
+Scope the `async with` to the real lifetime of the resource: a client per request discards the connection pool it exists to provide; one client per batch (or per application, closed at shutdown) amortizes it.
 
 For multiple resources acquired together, `contextlib.ExitStack` closes all of them in reverse order even if one acquisition raises. Write your own with `@contextlib.contextmanager` (or `@asynccontextmanager`) when a resource isn't already a context manager — `yield` the resource inside a `try` / `finally`.
 

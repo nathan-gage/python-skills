@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "organization": "Python Pytest",
+  "date": "August 2026",
+  "pythonVersion": ">=3.11",
+  "abstract": "Pytest discipline for agent consumption. 15 rules across 5 categories covering what deserves to be a committed test, deterministic concurrency testing, fixture isolation, mocking boundaries, and suite structure. Each rule is observational — it describes the pattern and what it costs, shows incorrect and correct code, and cites pytest or stdlib documentation where behavior is version- or configuration-dependent. The organizing principle: every committed test defends a named observable contract, and everything else — fixtures, mocks, parametrization, configuration — exists to keep that defense honest.",
+  "references": [
+    "https://docs.pytest.org/en/stable/",
+    "https://docs.pytest.org/en/stable/explanation/goodpractices.html",
+    "https://docs.pytest.org/en/stable/how-to/fixtures.html",
+    "https://docs.pytest.org/en/stable/how-to/monkeypatch.html",
+    "https://docs.pytest.org/en/stable/how-to/parametrize.html",
+    "https://docs.pytest.org/en/stable/how-to/skipping.html",
+    "https://docs.pytest.org/en/stable/how-to/flaky.html",
+    "https://docs.python.org/3/library/unittest.mock.html#where-to-patch",
+    "https://docs.python.org/3/library/asyncio-sync.html"
+  ]
+}

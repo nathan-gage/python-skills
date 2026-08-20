@@ -17,32 +17,37 @@ Section impact is a typical-case label. Individual rules range one level above o
 **Impact:** MEDIUM-HIGH  
 **Description:** Specific exceptions, context managers for resources, preserved cancellation semantics. Sloppy exceptions hide bugs; narrow catches localize them.
 
-## 3. Type Safety (types)
+## 3. Concurrency & Async (async)
+
+**Impact:** MEDIUM-HIGH  
+**Description:** Event-loop discipline. Blocking calls, task ownership, bounded fan-out, deterministic stream cleanup. These failures pass single-request smoke tests and surface under load.
+
+## 4. Type Safety (types)
 
 **Impact:** MEDIUM-HIGH  
 **Description:** Precise types catch bugs at type-check time. Fix type errors rather than ignore them; no `Any` drift in new code.
 
-## 4. API Design (api)
+## 5. API Design (api)
 
 **Impact:** MEDIUM  
 **Description:** Interfaces that age well. Required-before-optional ordering, keyword-only params, no boolean flag soup. Mostly applies to new code.
 
-## 5. Code Simplification (simplify)
+## 6. Code Simplification (simplify)
 
 **Impact:** LOW-MEDIUM  
 **Description:** Python idioms. Comprehensions, `any()`/`all()`, early returns. Mostly stylistic — apply when writing or reviewing.
 
-## 6. Performance (perf)
+## 7. Performance (perf)
 
 **Impact:** LOW-MEDIUM  
 **Description:** Python-specific optimizations. Set/dict lookups, cached properties, module-level compilation. Applied on measured hot paths, not as a stylistic crusade.
 
-## 7. Naming (naming)
+## 8. Naming (naming)
 
 **Impact:** LOW-MEDIUM  
 **Description:** Names carry meaning. Specific over generic, consistent terminology, no type suffixes. Mostly applies to new names.
 
-## 8. Imports & Structure (imports)
+## 9. Imports & Structure (imports)
 
 **Impact:** LOW  
 **Description:** Module hygiene. Imports at the top, no import-time side effects, optional deps handled explicitly. Most items linters catch automatically.

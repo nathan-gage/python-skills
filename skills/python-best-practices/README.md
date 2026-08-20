@@ -26,12 +26,13 @@ python-best-practices/
 |---|---|---|---|
 | 1 | Data Modeling | HIGH | `data-` |
 | 2 | Error Handling | MEDIUM-HIGH | `error-` |
-| 3 | Type Safety | MEDIUM-HIGH | `types-` |
-| 4 | API Design | MEDIUM | `api-` |
-| 5 | Code Simplification | LOW-MEDIUM | `simplify-` |
-| 6 | Performance | LOW-MEDIUM | `perf-` |
-| 7 | Naming | LOW-MEDIUM | `naming-` |
-| 8 | Imports & Structure | LOW | `imports-` |
+| 3 | Concurrency & Async | MEDIUM-HIGH | `async-` |
+| 4 | Type Safety | MEDIUM-HIGH | `types-` |
+| 5 | API Design | MEDIUM | `api-` |
+| 6 | Code Simplification | LOW-MEDIUM | `simplify-` |
+| 7 | Performance | LOW-MEDIUM | `perf-` |
+| 8 | Naming | LOW-MEDIUM | `naming-` |
+| 9 | Imports & Structure | LOW | `imports-` |
 
 Section impact is the typical case; individual rules range one level above or below — always check the rule frontmatter. Applicability (e.g., Pydantic-only) is tagged on the rule, not the section.
 
@@ -59,9 +60,9 @@ Keep rule bodies short — target 20–40 lines. One Incorrect block, one Correc
 ## Scripts
 
 ```bash
-python src/build.py            # compile rules into AGENTS.md
-python src/validate.py         # lint frontmatter, references, example structure
-python src/extract_tests.py    # generate test-cases.json for LLM evals
+uv run src/build.py            # compile rules into AGENTS.md
+uv run src/validate.py         # lint frontmatter, references, example structure
+uv run src/extract_tests.py    # generate test-cases.json for LLM evals
 ```
 
 Typical loop: `validate.py` → fix → `build.py` → `extract_tests.py` before commit. `AGENTS.md` and `test-cases.json` are generated outputs — don't hand-edit.

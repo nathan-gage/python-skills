@@ -22,17 +22,17 @@ def stamp() -> datetime:
 **Correct (UTC-aware at the boundary; local zone only for display):**
 
 ```python
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 def stamp() -> datetime:
-    return datetime.now(timezone.utc)     # aware; round-trips through isoformat() cleanly
+    return datetime.now(UTC)              # aware; round-trips through isoformat() cleanly
 
-stored = datetime.now(timezone.utc)
+stored = datetime.now(UTC)
 display = stored.astimezone(ZoneInfo("America/Los_Angeles"))  # named zone, DST handled
 ```
 
-`zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
+`UTC` (3.11+) is an alias for `timezone.utc` — either spelling is fine; match the codebase. `zoneinfo` (3.9+, PEP 615) reads from system tzdata and handles DST and historical offsets. Use named zones (`"America/Los_Angeles"`), not raw offsets (`-08:00`).
 
 **Parsing input:** if callers can send naive datetimes, decide once whether to reject or assume a fixed zone. Never *silently* treat naive as UTC. For Pydantic v2, `AwareDatetime` rejects naive values at the model boundary. For PostgreSQL, use `TIMESTAMPTZ`; for SQLite/MySQL, store ISO-8601 strings with `+00:00` or epoch milliseconds.
 

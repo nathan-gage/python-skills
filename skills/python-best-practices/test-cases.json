@@ -1,6 +1,6 @@
 {
   "generated_by": "src/extract_tests.py",
-  "count": 70,
+  "count": 79,
   "cases": [
     {
       "rule": "api-deprecated-aliases",
@@ -102,7 +102,7 @@
     {
       "rule": "api-required-before-optional",
       "title": "Order Required Fields Before Optional Fields",
-      "impact": "HIGH",
+      "impact": "MEDIUM",
       "tags": [
         "api",
         "dataclasses",
@@ -126,6 +126,62 @@
       "explanation": "Names that start with `_` are internal. Names that don't are public \u2014 and public means \"backward-compatible forever unless deprecated.\" Without language-level enforcement, implementation details often stay public; underscore them on the way in, not after they've leaked."
     },
     {
+      "rule": "async-bound-concurrency",
+      "title": "Bound Fan-Out Concurrency",
+      "impact": "MEDIUM",
+      "tags": [
+        "async",
+        "asyncio",
+        "semaphore",
+        "backpressure"
+      ],
+      "incorrect": "async def thumbnail_all(image_urls: list[str]) -> list[Thumbnail]:\n    return await asyncio.gather(*(make_thumbnail(url) for url in image_urls))",
+      "correct": "async def thumbnail_all(image_urls: list[str], *, max_concurrent: int = 8) -> list[Thumbnail]:\n    semaphore = asyncio.Semaphore(max_concurrent)\n\n    async def bounded(url: str) -> Thumbnail:\n        async with semaphore:\n            return await make_thumbnail(url)\n\n    return await asyncio.gather(*(bounded(url) for url in image_urls))",
+      "explanation": "`gather` over a per-item coroutine starts *everything at once*. For 10 items that's concurrency; for 10,000 it's 10,000 open sockets, 10,000 in-flight payloads, and a thundering herd against whatever sits downstream. The smoke test with five items passes; production input sizes don't. Concurrent fan-out that scales with input needs an explicit bound sized to the real limit \u2014 connection pool, rate limit, memory per item."
+    },
+    {
+      "rule": "async-generator-cleanup",
+      "title": "Close Abandoned Async Generators Deterministically",
+      "impact": "MEDIUM",
+      "tags": [
+        "async",
+        "generators",
+        "cleanup",
+        "aclosing"
+      ],
+      "incorrect": "async def find_header(path: str) -> Record | None:\n    async for record in read_records(path):   # read_records holds a file + connection\n        if record.is_header:\n            return record                     # generator never finalized here\n    return None",
+      "correct": "from contextlib import aclosing\n\nasync def find_header(path: str) -> Record | None:\n    async with aclosing(read_records(path)) as records:\n        async for record in records:\n            if record.is_header:\n                return record                 # aclose() runs on exit \u2014 finally blocks included\n    return None",
+      "explanation": "Leaving an `async for` early \u2014 `break`, `return`, an exception \u2014 abandons the generator with its `finally` blocks and `async with` cleanup still pending. Nothing runs them at that point: finalization waits for garbage collection or the loop's `shutdown_asyncgens()` at teardown, where the cleanup executes late, on a loop that's shutting down, or surfaces as an unraisable-exception warning after the test that caused it has already passed. Locks held inside the generator stay held in the meantime."
+    },
+    {
+      "rule": "async-no-blocking-event-loop",
+      "title": "Don't Block the Event Loop",
+      "impact": "HIGH",
+      "tags": [
+        "async",
+        "asyncio",
+        "blocking",
+        "threads"
+      ],
+      "incorrect": "async def get_report(report_id: str) -> Report:\n    raw = cache.get(report_id)                  # sync network round-trip\n    if raw is None:\n        raw = requests.get(f\"{API}/reports/{report_id}\").content   # blocks the loop\n        time.sleep(0.1)                         # blocks the loop \u2014 not just this task\n    return pickle.loads(raw)                    # large payloads block for real milliseconds",
+      "correct": "async def get_report(report_id: str) -> Report:\n    raw = await cache.get(report_id)\n    if raw is None:\n        response = await http_client.get(f\"{API}/reports/{report_id}\")\n        raw = response.content\n        await asyncio.sleep(0.1)\n    return await asyncio.to_thread(pickle.loads, raw)",
+      "explanation": "An event loop runs one callback at a time. A synchronous call inside `async def` \u2014 `time.sleep`, a sync HTTP client, a big `pickle.loads`, file I/O on a slow disk \u2014 freezes *every* task on the loop until it returns: heartbeats stop, timeouts can't fire, concurrent requests queue behind it. The single-request smoke test passes; the incident happens under load."
+    },
+    {
+      "rule": "async-own-your-tasks",
+      "title": "Every Task Needs an Owner",
+      "impact": "HIGH",
+      "tags": [
+        "async",
+        "asyncio",
+        "tasks",
+        "structured-concurrency"
+      ],
+      "incorrect": "async def handle_order(order: Order) -> None:\n    asyncio.create_task(notify_warehouse(order))   # may be GC'd; errors surface at GC time\n    results = await asyncio.gather(                # charge fails \u2192 refund keeps running, unowned\n        charge_card(order),\n        reserve_stock(order),\n    )",
+      "correct": "async def handle_order(order: Order) -> None:\n    async with asyncio.TaskGroup() as tg:\n        tg.create_task(notify_warehouse(order))\n        tg.create_task(charge_card(order))\n        tg.create_task(reserve_stock(order))",
+      "explanation": "A task someone spawns and nobody awaits has three failure modes. The event loop keeps only a weak reference, so a fire-and-forget task can be garbage-collected mid-flight (the `create_task` docs warn about exactly this). Its exception is reported only when the task is collected \u2014 \"Task exception was never retrieved,\" long after the cause. And when the spawning code errors out, the task keeps running against torn-down state. `asyncio.gather` has the same orphan problem on failure: the first exception propagates while sibling coroutines keep running unsupervised."
+    },
+    {
       "rule": "data-aware-datetimes",
       "title": "Use Timezone-Aware Datetimes at Boundaries",
       "impact": "HIGH",
@@ -136,7 +192,7 @@
         "boundaries"
       ],
       "incorrect": "from datetime import datetime\n\ndef stamp() -> datetime:\n    return datetime.utcnow()              # naive \u2014 a serializer reading it as local time writes the wrong value",
-      "correct": "from datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\n\ndef stamp() -> datetime:\n    return datetime.now(timezone.utc)     # aware; round-trips through isoformat() cleanly\n\nstored = datetime.now(timezone.utc)\ndisplay = stored.astimezone(ZoneInfo(\"America/Los_Angeles\"))  # named zone, DST handled",
+      "correct": "from datetime import UTC, datetime\nfrom zoneinfo import ZoneInfo\n\ndef stamp() -> datetime:\n    return datetime.now(UTC)              # aware; round-trips through isoformat() cleanly\n\nstored = datetime.now(UTC)\ndisplay = stored.astimezone(ZoneInfo(\"America/Los_Angeles\"))  # named zone, DST handled",
       "explanation": "A `datetime` with no `tzinfo` is **naive**: two naive datetimes that look identical may refer to different absolute moments. Naive values leak into databases, JSON, logs, and inter-service messages, then surface as off-by-hours bugs during DST or when hosts differ. At any boundary the value crosses (HTTP, DB, queue, file, log, comparison), it must be timezone-aware. Store and transport in UTC; convert to local zones at display."
     },
     {
@@ -267,6 +323,20 @@
       "explanation": "When fields are \"all present or all absent\" in practice, don't model them as eight independent optionals at the top level. The flattened alternative forces consumers to `profile.first_name or defaults.first_name` eight times, and the type says nothing about which fields co-occur."
     },
     {
+      "rule": "data-reject-bool-as-int",
+      "title": "Remember bool Is an int Subtype",
+      "impact": "MEDIUM",
+      "tags": [
+        "data",
+        "validation",
+        "bool",
+        "int"
+      ],
+      "incorrect": "def set_page_size(value: object) -> int:\n    if not isinstance(value, int) or value < 1:\n        raise ValueError(f\"page size must be a positive integer, got {value!r}\")\n    return value\n\nset_page_size(True)   # returns True \u2014 later arithmetic treats it as 1\n{1: \"a\", True: \"b\"}   # one entry: True collides with key 1",
+      "correct": "def set_page_size(value: object) -> int:\n    if isinstance(value, bool) or not isinstance(value, int) or value < 1:\n        raise ValueError(f\"page size must be a positive integer, got {value!r}\")\n    return value",
+      "explanation": "`bool` subclasses `int`: `isinstance(True, int)` is `True`, `True == 1`, and `hash(True) == hash(1)`. Any numeric validation, dict key, or arithmetic that should exclude booleans must reject `bool` explicitly \u2014 and the check must come *first*, because the `int` check accepts booleans. This bites hardest on deserialized input, where JSON `true` arrives as Python `True` and sails through an `isinstance(..., int)` gate."
+    },
+    {
       "rule": "data-sentinel-when-none-is-valid",
       "title": "Use a Sentinel Object When None Is a Real Domain Value",
       "impact": "MEDIUM",
@@ -364,6 +434,20 @@
       "explanation": "When you catch an exception to recover or return a fallback, keep the traceback in the log. `logger.error(str(e))` records the message but loses the stack that explains where the failure came from \u2014 which is usually the part that makes the log useful."
     },
     {
+      "rule": "error-match-types-not-messages",
+      "title": "Classify Errors by Type, Not Message Text",
+      "impact": "MEDIUM",
+      "tags": [
+        "error",
+        "exceptions",
+        "retries",
+        "classification"
+      ],
+      "incorrect": "TRANSIENT_MARKERS = (\"timeout\", \"connection reset\", \"temporarily unavailable\")\n\ndef is_retryable(e: Exception) -> bool:\n    return any(marker in str(e).lower() for marker in TRANSIENT_MARKERS)\n    # \"invalid config: timeout must be positive\" \u2192 retried forever",
+      "correct": "RETRYABLE_STATUS = frozenset({429, 502, 503, 504})\n\ndef is_retryable(e: Exception) -> bool:\n    if isinstance(e, (TimeoutError, ConnectionError)):\n        return True\n    if isinstance(e, HTTPStatusError):\n        return e.response.status_code in RETRYABLE_STATUS\n    return False",
+      "explanation": "Branching on exception message substrings turns prose into a control-flow API. Messages change between library versions, vary by locale, and collide with legitimate content \u2014 an error that merely *mentions* \"timeout\" gets retried as if it were one. Exception types, status codes, and structured attributes are the contract; match on those."
+    },
+    {
       "rule": "error-raise-from-for-chains",
       "title": "Use raise ... from to Preserve Exception Causality",
       "impact": "LOW-MEDIUM",
@@ -433,6 +517,20 @@
       "explanation": "Validate once, at the edge \u2014 not repeatedly in every internal function. Sprinkling defensive checks throughout the call chain \"in case something got through\" bloats internals without catching anything a boundary check didn't. Push validation to the boundary (API handler, CLI entrypoint, deserialization), then trust the validated value."
     },
     {
+      "rule": "imports-lightweight-init",
+      "title": "Keep Package __init__ Imports Light",
+      "impact": "LOW-MEDIUM",
+      "tags": [
+        "imports",
+        "packages",
+        "init",
+        "lazy"
+      ],
+      "incorrect": "# pkg/__init__.py\nfrom .core import parse, render\nfrom .exporters.excel import ExcelExporter    # imports openpyxl\nfrom .exporters.charts import ChartExporter   # imports matplotlib\n\n# elsewhere \u2014 a consumer that only wants parse():\nfrom pkg.core import parse   # ImportError: No module named 'openpyxl'",
+      "correct": "# pkg/__init__.py\nfrom .core import parse, render\n\ndef __getattr__(name: str):\n    if name == \"ExcelExporter\":\n        from .exporters.excel import ExcelExporter\n        return ExcelExporter\n    if name == \"ChartExporter\":\n        from .exporters.charts import ChartExporter\n        return ChartExporter\n    raise AttributeError(f\"module {__name__!r} has no attribute {name!r}\")",
+      "explanation": "Importing any submodule executes every parent package's `__init__.py` first. An `__init__.py` that eagerly imports all its submodules turns `from pkg.core import parse` into \"load the entire package\" \u2014 including integrations that pull heavy or optional dependencies. The symptom is an `ImportError` for a dependency the importing code never mentions, or a cold start that pays for subsystems it doesn't use."
+    },
+    {
       "rule": "imports-no-duplicates",
       "title": "No Duplicate Imports",
       "impact": "LOW",
@@ -455,8 +553,8 @@
         "startup",
         "performance"
       ],
-      "incorrect": "# config.py\nimport requests\n\nCONFIG = requests.get(\"https://config.example.com/v1\").json()  # network at import\nDB_URL = CONFIG[\"db_url\"]\n\n# embeddings.py\nMODEL = SentenceTransformer(\"all-MiniLM-L6-v2\")                # 90 MB download + GPU init\n\n# keys.py\nAPI_KEY = os.environ[\"MY_API_KEY\"]                             # KeyError on import if unset",
-      "correct": "from functools import cache\n\n@cache\ndef get_config() -> dict[str, object]:\n    return requests.get(\"https://config.example.com/v1\").json()\n\n@cache\ndef get_model() -> \"SentenceTransformer\":\n    from sentence_transformers import SentenceTransformer\n    return SentenceTransformer(\"all-MiniLM-L6-v2\")\n\ndef api_key() -> str:\n    key = os.environ.get(\"MY_API_KEY\")\n    if not key:\n        raise RuntimeError(\"MY_API_KEY is required to call this API\")\n    return key",
+      "incorrect": "# config.py\nimport requests\n\nCONFIG = requests.get(\"https://config.example.com/v1\").json()  # network at import\nDB_URL = CONFIG[\"db_url\"]\n\n# embeddings.py\nMODEL = SentenceTransformer(\"all-MiniLM-L6-v2\")                # 90 MB download + GPU init\n\n# keys.py\nAPI_KEY = os.environ[\"MY_API_KEY\"]                             # KeyError on import if unset\n\n# settings.py \u2014 env-validating settings object built at import\nclass Settings:\n    def __init__(self) -> None:\n        self.database_url = os.environ[\"DATABASE_URL\"]\n        self.api_key = os.environ[\"API_KEY\"]\n\nsettings = Settings()                # any import of this module now requires a full environment",
+      "correct": "from functools import cache\n\n@cache\ndef get_config() -> dict[str, object]:\n    return requests.get(\"https://config.example.com/v1\").json()\n\n@cache\ndef get_model() -> \"SentenceTransformer\":\n    from sentence_transformers import SentenceTransformer\n    return SentenceTransformer(\"all-MiniLM-L6-v2\")\n\ndef api_key() -> str:\n    key = os.environ.get(\"MY_API_KEY\")\n    if not key:\n        raise RuntimeError(\"MY_API_KEY is required to call this API\")\n    return key\n\n@cache\ndef get_settings() -> Settings:\n    return Settings()                    # constructed at first use, at the composition boundary",
       "explanation": "Anything at module top-level \u2014 opening files, reading env vars, building large data structures, connecting to databases, registering handlers, hitting the network \u2014 runs every time anything in that module is imported. That cost compounds across CLI cold-starts, test collection, worker pools, and serverless functions. It also makes modules hard to mock. Push side effects into functions, factories, or lazy properties that callers invoke explicitly."
     },
     {
@@ -889,6 +987,20 @@
       "explanation": "When a parameter accepts one of a fixed set of string values, `str` is too wide \u2014 every typo is legal. `Literal[\"a\", \"b\", \"c\"]` narrows the type to exactly those values and enables `match` exhaustiveness checking."
     },
     {
+      "rule": "types-modern-syntax",
+      "title": "Use Modern Typing Syntax",
+      "impact": "MEDIUM",
+      "tags": [
+        "types",
+        "syntax",
+        "unions",
+        "generics"
+      ],
+      "incorrect": "from typing import Dict, List, Optional, Union\n\ndef merge_tags(\n    base: List[str],\n    extra: Optional[List[str]] = None,\n) -> Dict[str, Union[int, str]]:\n    ...",
+      "correct": "def merge_tags(\n    base: list[str],\n    extra: list[str] | None = None,\n) -> dict[str, int | str]:\n    ...",
+      "explanation": "On 3.11+, `Optional[X]`, `Union[X, Y]`, and `typing.List` / `Dict` / `Tuple` are legacy spellings. The modern forms \u2014 `X | None`, `X | Y`, and builtin generics `list[str]` / `dict[str, int]` \u2014 mean the same thing with fewer imports and one consistent style. Mixing both styles in one module forces readers to translate between them and invites duplicate imports."
+    },
+    {
       "rule": "types-narrow-to-runtime-reality",
       "title": "Narrow Type Signatures to Runtime Reality",
       "impact": "MEDIUM",
@@ -915,6 +1027,20 @@
       "incorrect": "from dataclasses import dataclass\n\n@dataclass\nclass Session:\n    user_id: str\n    token: str | None = None  # but we always generate a token in __post_init__\n\n    def __post_init__(self) -> None:\n        if self.token is None:\n            self.token = generate_token()",
       "correct": "from dataclasses import dataclass, field\n\n@dataclass\nclass Session:\n    user_id: str\n    token: str = field(default_factory=generate_token)",
       "explanation": "An annotation of `X | None` tells readers and the checker that `None` is a real possibility \u2014 every consumer now writes a `None` check. When the value is guaranteed to be set (by the constructor, by the control flow, by an earlier validation), `| None` lies about the API."
+    },
+    {
+      "rule": "types-sequence-over-list-params",
+      "title": "Accept Sequence and Mapping for Read-Only Parameters",
+      "impact": "MEDIUM",
+      "tags": [
+        "types",
+        "variance",
+        "collections",
+        "parameters"
+      ],
+      "incorrect": "def render_all(widgets: list[Widget]) -> str:\n    return \"\\n\".join(w.render() for w in widgets)\n\nbuttons: list[Button] = load_buttons()\nrender_all(buttons)  # error: Argument 1 has incompatible type \"list[Button]\"; expected \"list[Widget]\"",
+      "correct": "from collections.abc import Mapping, Sequence\n\ndef render_all(widgets: Sequence[Widget]) -> str:\n    return \"\\n\".join(w.render() for w in widgets)\n\ndef apply_labels(labels: Mapping[str, str]) -> None: ...",
+      "explanation": "`list` and `dict` are invariant: a `list[Button]` is *not* a `list[Widget]` even when `Button` subclasses `Widget`, because a function taking `list[Widget]` could legally append a `Slider` into it. Annotating a read-only parameter as `list[T]` therefore rejects callers holding lists of subtypes \u2014 the checker even suggests the fix (\"consider using Sequence instead, which is covariant\"). The abstract types also document intent: `Sequence` promises the function won't mutate."
     },
     {
       "rule": "types-trust-the-checker",

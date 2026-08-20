@@ -117,6 +117,14 @@ Skills load on-demand — only the skill name and description are loaded at star
 
 Sections in `_sections.md` are numbered. The numeric prefix communicates priority, but the **filename prefix** (e.g., `types-`, `api-`) is what groups rules. Rules within a section sort alphabetically by title.
 
+### Validating Claims (`proofs/`)
+
+`proofs/` (repo tooling, not vendored with any skill) holds executable pytest proofs for version-sensitive or counterintuitive runtime claims made by rules. Run `make -C proofs` to execute them across supported Python versions via `uv`.
+
+- A new rule that asserts version-dependent or surprising runtime behavior MUST get a proof in `proofs/tests/`, with a docstring citing the rule id and quoting the claim.
+- A proof that fails on a supported version means the rule text is wrong or needs a version qualifier — fix the rule, not the proof.
+- Type-checker-level claims (variance, narrowing) are out of scope for the runtime harness; verify those against checker documentation.
+
 ## Philosophy
 
 These skills are written for agents first, humans second. That means:

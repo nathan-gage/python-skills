@@ -34,4 +34,4 @@ def compiled_schema() -> Schema:
     return Schema.compile(SCHEMA_PATH)   # expensive, read-only: safe to share
 ```
 
-A middle path for expensive-but-mutable resources: acquire at `session` scope, reset at `function` scope (truncate tables, clear caches) — the sharing is of the *connection*, not the *state*. Declare fixtures as explicit parameters rather than `autouse=True` where possible; autouse hides a dependency every test silently carries, and hidden dependencies are how "why does this test need a database?" questions start.
+**When widening scope is safe:** a middle path for expensive-but-mutable resources is to acquire at `session` scope and reset at `function` scope (truncate tables, clear caches) — the sharing is of the *connection*, not the *state*. Declare fixtures as explicit parameters rather than `autouse=True` where possible; autouse hides a dependency every test silently carries, and hidden dependencies are how "why does this test need a database?" questions start.

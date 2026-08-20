@@ -15,7 +15,7 @@ Once a value has been validated *and the validated object is transitively immuta
 ```python
 class ValidatedOrder(BaseModel):
     model_config = {"frozen": True}
-    items: tuple[Item, ...]   # transitively frozen — frozen=True alone only stops field reassignment
+    items: tuple[Item, ...]   # immutable graph (Item is frozen too) — frozen=True alone only stops field reassignment
     total: int
 
     @model_validator(mode="after")

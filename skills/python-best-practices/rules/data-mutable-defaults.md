@@ -8,7 +8,7 @@ references: https://docs.python.org/3/tutorial/controlflow.html#default-argument
 
 ## Never Use Mutable Default Arguments
 
-A default argument is evaluated **once**, when the `def` statement runs — not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore shared across every call that doesn't override it. Appending to the "default" list on one call mutates the default for every subsequent call. The same trap applies to dataclass and Pydantic field defaults. Always use `None` + body construction, or `default_factory`.
+A default argument is evaluated **once**, when the `def` statement runs — not each call. A mutable default (`[]`, `{}`, `set()`, a dataclass instance) is therefore shared across every call that doesn't override it: appending to the "default" list on one call mutates the default for every subsequent call. Use `None` + body construction, or a factory. The same *syntax* behaves three different ways — plain functions share the one object (the bug), `@dataclass` refuses it outright, and Pydantic v2 deep-copies it per instance — so the fix differs by context; see below.
 
 **Incorrect (the `[]` is one object, reused across calls):**
 
@@ -45,4 +45,4 @@ class Config(BaseModel):
     tags: list[str] = Field(default_factory=list)
 ```
 
-`@dataclass` rejects bare mutable defaults with `ValueError`. Pydantic v2 happens to deep-copy the default for each instance, but `Field(default_factory=list)` makes the intent explicit and survives version changes. Safe to use directly as defaults: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. The property that matters is transitive immutability, not the surface type.
+**Scope — same syntax, three behaviors:** a plain `def` shares the single default object — the bug this rule exists for. `@dataclass` *rejects* bare mutable defaults with `ValueError`, steering you to `default_factory`. Pydantic v2 is not the same trap: it deep-copies unhashable mutable defaults per instance, so `tags: list[str] = []` on a model works — `Field(default_factory=list)` stays preferable for clarity, for hashable mutable defaults, and for validated defaults, but it isn't a correctness fix there; don't flag model defaults as the function-argument bug. Safe to use directly as defaults anywhere: tuples, frozensets, strings, ints, `None`, and frozen dataclasses — provided their *contents* are immutable too; a tuple of lists shares the inner lists just the same. Transitive immutability, not surface type, is the property that matters.

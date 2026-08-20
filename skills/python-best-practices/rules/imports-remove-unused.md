@@ -33,4 +33,6 @@ def compact(data: dict[str, Any]) -> str:
     return json.dumps(data, separators=(",", ":"))
 ```
 
-`ruff check --select F401` flags unused imports — wire it into pre-commit or CI. If a module intentionally re-exports names (common in `__init__.py`), use the `from .client import Client as Client` form or list them in `__all__`; both signal "intentional, not forgotten." If an import is used only in annotations, move it under `if TYPE_CHECKING:` (see `types-type-checking-imports`). Keep an otherwise-unused import only when importing it has a required side effect (plugin self-registration) — and comment it: `# noqa: F401 — registers handlers at import time`.
+`ruff check --select F401` flags unused imports — wire it into pre-commit or CI. If a module intentionally re-exports names (common in `__init__.py`), use the `from .client import Client as Client` form or list them in `__all__`; both signal "intentional, not forgotten." If an import is used only in annotations, move it under `if TYPE_CHECKING:` (see `types-type-checking-imports`).
+
+**Keep an otherwise-unused import only when importing it has a required side effect:** comment it: `# noqa: F401 — registers handlers at import time`.

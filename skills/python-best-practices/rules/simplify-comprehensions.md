@@ -31,4 +31,4 @@ unique_tags = {tag for post in posts for tag in post.tags}
 total = sum(item.price for item in items)   # generator, no intermediate list
 ```
 
-Break a comprehension into a loop when the expression stops reading like English — multi-step logic, side effects, or nested conditionals with intermediate variables are signs the comprehension has outgrown one line. For boolean reductions, prefer `any(u.is_admin for u in users)` over `any([...])` — the generator short-circuits and avoids materializing the list.
+**When to break a comprehension into a loop:** when the expression stops reading like English — multi-step logic, side effects, or nested conditionals with intermediate variables are signs the comprehension has outgrown one line. For boolean reductions, prefer `any(u.is_admin for u in users)` over `any([...])` — the generator short-circuits and avoids materializing the list.

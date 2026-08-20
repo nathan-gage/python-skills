@@ -31,4 +31,6 @@ testpaths = ["tests"]
 addopts = "-p no:observability_sdk"       # decision recorded next to the config it affects
 ```
 
-Diagnose with `pytest --trace-config` (lists every active plugin) or compare a run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` plus explicit `-p` flags for the plugins the suite actually uses — the allowlist form, which makes the whole surface declared rather than inherited. Symptoms that warrant the audit: collection noticeably slower than test time, retries or telemetry no config requested, tests behaving differently on one machine. Plugins the suite genuinely depends on belong in dev dependencies by name; leaving autoload alone in the absence of symptoms is a fine default, not a violation.
+Diagnose with `pytest --trace-config` (lists every active plugin) or compare a run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` plus explicit `-p` flags for the plugins the suite actually uses — the allowlist form, which makes the whole surface declared rather than inherited. Symptoms that warrant the audit: collection noticeably slower than test time, retries or telemetry no config requested, tests behaving differently on one machine. Plugins the suite genuinely depends on belong in dev dependencies by name.
+
+**Keep autoload when quiet:** leaving autoload alone in the absence of symptoms is a fine default, not a violation.

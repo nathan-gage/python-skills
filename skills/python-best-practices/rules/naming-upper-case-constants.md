@@ -34,4 +34,4 @@ from typing import Final
 DEFAULT_TIMEOUT: Final[int] = 30  # checker flags any reassignment
 ```
 
-Keep `lower_case` for values that look like constants but aren't — derived from `os.environ` at import, intentionally reassignable feature flags, or test-mutable hooks. The convention is for *intentional* constants.
+**Keep `lower_case` for values that look like constants but aren't:** values derived from `os.environ` at import, intentionally reassignable feature flags, or test-mutable hooks. The convention is for *intentional* constants.

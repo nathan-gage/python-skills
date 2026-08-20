@@ -35,9 +35,16 @@ class Config(TypedDict):
 
 def load_config() -> Config:
     data = json.loads(CONFIG_PATH.read_text())
-    if not isinstance(data.get("timeout"), int) or not isinstance(data.get("retries"), int):
+    if not (
+        isinstance(data, dict)
+        and _is_int(data.get("timeout"))
+        and _is_int(data.get("retries"))
+    ):
         raise ValueError(f"malformed config at {CONFIG_PATH}")
     return cast(Config, data)   # narrowed by the checks above — once, at the parse boundary
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)  # bool is an int subtype
 
 def get_timeout() -> int:
     config = load_config()

@@ -51,4 +51,6 @@ Callers must pass `timeout=`, `retries=`, etc. by name.
 
 **Heuristic:** the first one or two params can be positional (the "thing" the function operates on). Everything else — especially optional configuration — should be keyword-only.
 
-**For public APIs the calculus is strongest:** once a library ships positional config params, every reorder or addition is a breaking change. Note the trade keyword-only makes: parameter *names* become part of the compatibility surface, so renaming one is also a break — positional-only (`/`) exists for the opposite bet, preserving the freedom to rename the first one or two "thing" parameters.
+For public APIs the calculus is strongest: once a library ships positional config params, every reorder or addition is a breaking change.
+
+**Caveat:** Keyword-only parameter *names* become part of the compatibility surface, so renaming one is also a break — positional-only (`/`) exists for the opposite bet, preserving the freedom to rename the first one or two "thing" parameters.

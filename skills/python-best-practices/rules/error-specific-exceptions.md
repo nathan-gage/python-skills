@@ -32,7 +32,9 @@ def fetch_user(user_id: str) -> User | None:
     return parse_user(response.json())  # bugs here propagate
 ```
 
-Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`. A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
+Never use bare `except:` or `except BaseException:` — both catch `KeyboardInterrupt`, `SystemExit`, and `asyncio.CancelledError`.
+
+**When a broad catch is acceptable:** A broad `except Exception:` is fine at an outer boundary when you log and re-raise:
 
 ```python
 def handle_request(req: Request) -> Response:

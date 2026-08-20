@@ -10,6 +10,8 @@ references: https://docs.python.org/3/library/asyncio-dev.html#running-blocking-
 
 An event loop runs one callback at a time. A synchronous call inside `async def` — `time.sleep`, a sync HTTP client, a big `pickle.loads`, file I/O on a slow disk — freezes *every* task on the loop until it returns: heartbeats stop, timeouts can't fire, concurrent requests queue behind it. The single-request smoke test passes; the incident happens under load.
 
+**Scope:** A microseconds-cheap synchronous call — a dictionary lookup or small pure computation — is not "blocking"; this rule targets I/O, sleeps, and real CPU work.
+
 **Incorrect (sync work on the loop):**
 
 ```python

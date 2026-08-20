@@ -16,7 +16,7 @@
       "correct": "def test_cache_eviction():\n    clock = FakeClock()                          # control the time the race depended on\n    cache = Cache(max_age=60, clock=clock)\n    cache.set(\"k\", \"v\")\n    clock.advance(61)\n    assert cache.get(\"k\") is None",
       "explanation": "A flaky test is evidence: a race, an order dependency, leaked state, or a timing assumption \u2014 in the test or in the code under test. Rerun plugins, widened timeouts, `flaky` markers, and intermittent `xfail` all convert that evidence into permanent noise: the bug stays, the suite slows, and every future flake hides behind the masking already in place. Masking also inverts the incentive \u2014 once retries are normal, nobody investigates the first failure.",
       "counter_signals": [
-        "The repair toolkit: control the sources of nondeterminism (inject clocks, seed RNGs, synchronize on events per `determinism-sync-not-sleep`), isolate leaked state (`fixtures-restore-global-state`), and reproduce order dependence by running the failing test alone and with `-p no:randomly` / a fixed seed to bisect. When a fix genuinely can't land now, a *strict, linked* skip is the honest parking spot: `pytest.mark.skip(reason=\"racy: see ISSUE-123\")` \u2014 visible, tracked, and not silently consuming retries on every run."
+        "**When retries are honest:** retries are an *explicit operational policy* \u2014 a labeled quarantine lane for tests crossing a boundary you don't control (external services, real browsers), with owners and an exit path \u2014 and are triage, not masking. The line: masking silently normalizes failure in the main suite; quarantine names it, isolates it from the merge signal, and tracks it toward a fix."
       ]
     },
     {
@@ -81,7 +81,7 @@
       "correct": "@pytest.fixture\ndef db():\n    return InMemoryDB()          # fresh per test \u2014 order stops mattering\n\n@pytest.fixture(scope=\"session\")\ndef compiled_schema() -> Schema:\n    return Schema.compile(SCHEMA_PATH)   # expensive, read-only: safe to share",
       "explanation": "A fixture's scope is a sharing contract: `session` scope means every test sees the same object, including mutations left by earlier tests. Widening scope for speed trades isolation for it \u2014 and the cost surfaces later as tests that pass alone but fail in suite order (or worse, pass only in suite order). Default to `function` scope; widen only when the fixture is expensive *and* the shared object is immutable or reset between uses.",
       "counter_signals": [
-        "A fixture's scope is a sharing contract: `session` scope means every test sees the same object, including mutations left by earlier tests. Widening scope for speed trades isolation for it \u2014 and the cost surfaces later as tests that pass alone but fail in suite order (or worse, pass only in suite order). Default to `function` scope; widen only when the fixture is expensive *and* the shared object is immutable or reset between uses."
+        "**When widening scope is safe:** a middle path for expensive-but-mutable resources is to acquire at `session` scope and reset at `function` scope (truncate tables, clear caches) \u2014 the sharing is of the *connection*, not the *state*. Declare fixtures as explicit parameters rather than `autouse=True` where possible; autouse hides a dependency every test silently carries, and hidden dependencies are how \"why does this test need a database?\" questions start."
       ]
     },
     {
@@ -194,8 +194,7 @@
       "correct": "def test_render_invoice_totals_include_tax():\n    invoice = make_invoice(items=[Item(price=100, tax_rate=0.2)])\n    result = render_invoice(invoice)\n    assert \"Total: 120.00\" in result   # wrong tax math fails this line",
       "explanation": "A committed test must protect a named, observable behavior with an assertion that fails for a plausible regression. Tests that merely *execute* code \u2014 call a function, assert the result \"is not None\", check no exception was raised \u2014 are development probes: useful while writing the code, weight once committed. They pass under almost any regression, so they defend nothing, while still costing runtime, maintenance, and reviewer attention.",
       "counter_signals": [
-        "Before committing a test, name the contract it defends in the test name. If the honest name is `test_render_invoice_runs`, delete the test \u2014 or find the real assertion. Probes written to exercise new code during development are fine as a workflow; the discipline is deleting them before commit instead of promoting them to `skip`, `xfail`, or a literal `assert True`.",
-        "One deliberate exception: an explicitly-named smoke contract \u2014 `test_all_modules_import`, `test_app_starts_with_default_config` \u2014 where \"does not crash\" *is* the observable contract (import cycles, missing deps, broken entry points are the regressions it defends). The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe."
+        "**Exception \u2014 named smoke contracts:** an explicitly-named smoke contract \u2014 `test_all_modules_import`, `test_app_starts_with_default_config` \u2014 may treat \"does not crash\" as the observable contract because import cycles, missing deps, and broken entry points are the regressions it defends. The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe."
       ]
     },
     {
@@ -211,8 +210,7 @@
       "correct": "def test_create_assigns_id():\n    assert service.create(name=\"ada\").id is not None\n\ndef test_rename_persists():\n    user = service.create(name=\"ada\")\n    service.rename(user.id, \"grace\")\n    assert service.get(user.id).name == \"grace\"\n\ndef test_delete_removes_user():\n    user = service.create(name=\"ada\")\n    service.delete(user.id)\n    assert service.get(user.id) is None",
       "explanation": "A test that bundles independently-failing behaviors reports only the first break: everything after the failing assert is unexercised, so one regression masks another. And the test name stops describing what failed. Split when the phases can fail independently; keep a single test when the asserts describe one cohesive outcome.",
       "counter_signals": [
-        "A test that bundles independently-failing behaviors reports only the first break: everything after the failing assert is unexercised, so one regression masks another. And the test name stops describing what failed. Split when the phases can fail independently; keep a single test when the asserts describe one cohesive outcome.",
-        "Multiple asserts are fine when they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs \"and\". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change \u2014 keeping them for test-count or coverage optics preserves numbers, not protection."
+        "**When multiple asserts are fine:** they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs \"and\". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change \u2014 keeping them for test-count or coverage optics preserves numbers, not protection."
       ]
     }
   ]

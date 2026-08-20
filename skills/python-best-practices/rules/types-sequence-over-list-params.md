@@ -33,4 +33,6 @@ def apply_labels(labels: Mapping[str, str]) -> None: ...
 
 `render_all(buttons)` now type-checks, and the signature guarantees the input comes back unmodified.
 
-**Choosing the parameter type:** `Iterable[T]` when one pass is enough (also admits generators), `Sequence[T]` when you need `len()` / indexing / re-iteration, `Mapping[K, V]` for read-only dicts. Keep `list[T]` / `dict[K, V]` when the function genuinely mutates — then the concrete type is the honest one. Return types go the other way: return the concrete type you actually built (`list[T]`), which gives callers the most capability.
+**Choosing the parameter type:** `Iterable[T]` when one pass is enough (also admits generators), `Sequence[T]` when you need `len()` / indexing / re-iteration, `Mapping[K, V]` for read-only dicts.
+
+**Keep `list[T]` / `dict[K, V]` when the function genuinely mutates:** then the concrete type is the honest one. Return types go the other way: return the concrete type you actually built (`list[T]`), which gives callers the most capability.

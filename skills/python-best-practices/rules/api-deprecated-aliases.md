@@ -32,4 +32,6 @@ def get_user(user_id: str) -> User:
 
 On older Pythons, call `warnings.warn("...", DeprecationWarning, stacklevel=2)` inside the alias body — same runtime effect, minus the static-checker signal.
 
-For renamed *parameters*, `@warnings.deprecated` doesn't apply — it decorates whole symbols. Accept the old keyword as a compatibility path with a sentinel default, forward to the new name, and emit `warnings.warn(..., DeprecationWarning, stacklevel=2)` when the old path is taken. Remove the alias in a later major version. Skip deprecation only when the name was never public (starts with `_`, not in `__all__`, not in docs).
+For renamed *parameters*, `@warnings.deprecated` doesn't apply — it decorates whole symbols. Accept the old keyword as a compatibility path with a sentinel default, forward to the new name, and emit `warnings.warn(..., DeprecationWarning, stacklevel=2)` when the old path is taken. Remove the alias in a later major version.
+
+**When to skip deprecation:** Skip deprecation only when the name was never public (starts with `_`, not in `__all__`, not in docs).

@@ -76,7 +76,7 @@ def test_render_invoice_totals_include_tax():
 
 Before committing a test, name the contract it defends in the test name. If the honest name is `test_render_invoice_runs`, delete the test — or find the real assertion. Probes written to exercise new code during development are fine as a workflow; the discipline is deleting them before commit instead of promoting them to `skip`, `xfail`, or a literal `assert True`.
 
-One deliberate exception: an explicitly-named smoke contract — `test_all_modules_import`, `test_app_starts_with_default_config` — where "does not crash" *is* the observable contract (import cycles, missing deps, broken entry points are the regressions it defends). The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe.
+**Exception — named smoke contracts:** an explicitly-named smoke contract — `test_all_modules_import`, `test_app_starts_with_default_config` — may treat "does not crash" as the observable contract because import cycles, missing deps, and broken entry points are the regressions it defends. The bar is the same: the name states what surviving means, and the test exists on purpose, not as a leftover probe.
 
 ### 1.2 Derive Expected Values Independently of the Implementation
 
@@ -147,7 +147,7 @@ def test_delete_removes_user():
     assert service.get(user.id) is None
 ```
 
-Multiple asserts are fine when they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs "and". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change — keeping them for test-count or coverage optics preserves numbers, not protection.
+**When multiple asserts are fine:** they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs "and". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change — keeping them for test-count or coverage optics preserves numbers, not protection.
 
 ## 2. Determinism
 
@@ -187,7 +187,7 @@ def test_cache_eviction():
 
 The repair toolkit: control the sources of nondeterminism (inject clocks, seed RNGs, synchronize on events per `determinism-sync-not-sleep`), isolate leaked state (`fixtures-restore-global-state`), and reproduce order dependence by running the failing test alone and with `-p no:randomly` / a fixed seed to bisect. When a fix genuinely can't land now, a *strict, linked* skip is the honest parking spot: `pytest.mark.skip(reason="racy: see ISSUE-123")` — visible, tracked, and not silently consuming retries on every run.
 
-Retries as an *explicit operational policy* — a labeled quarantine lane for tests crossing a boundary you don't control (external services, real browsers), with owners and an exit path — are triage, not masking. The line: masking silently normalizes failure in the main suite; quarantine names it, isolates it from the merge signal, and tracks it toward a fix.
+**When retries are honest:** retries are an *explicit operational policy* — a labeled quarantine lane for tests crossing a boundary you don't control (external services, real browsers), with owners and an exit path — and are triage, not masking. The line: masking silently normalizes failure in the main suite; quarantine names it, isolates it from the merge signal, and tracks it toward a fix.
 
 ### 2.2 Synchronize on Events, Not Sleeps
 
@@ -326,7 +326,7 @@ def compiled_schema() -> Schema:
     return Schema.compile(SCHEMA_PATH)   # expensive, read-only: safe to share
 ```
 
-A middle path for expensive-but-mutable resources: acquire at `session` scope, reset at `function` scope (truncate tables, clear caches) — the sharing is of the *connection*, not the *state*. Declare fixtures as explicit parameters rather than `autouse=True` where possible; autouse hides a dependency every test silently carries, and hidden dependencies are how "why does this test need a database?" questions start.
+**When widening scope is safe:** a middle path for expensive-but-mutable resources is to acquire at `session` scope and reset at `function` scope (truncate tables, clear caches) — the sharing is of the *connection*, not the *state*. Declare fixtures as explicit parameters rather than `autouse=True` where possible; autouse hides a dependency every test silently carries, and hidden dependencies are how "why does this test need a database?" questions start.
 
 ### 3.3 Restore Every Mutated Global, Including Absent Ones
 
@@ -493,7 +493,9 @@ addopts = "--import-mode=importlib"   # pytest's recommendation for new projects
                                       # removes the uniqueness requirement entirely
 ```
 
-Three ways out, pick one per repository: globally-unique test module filenames (naming modules after what they test — `test_billing_rounding.py`, not a third `test_utils.py` — does this as a side effect and reads better in failure output); `--import-mode=importlib`, recommended for new projects, with the caveat that test modules then can't import *each other* by bare name; or full package chains — `__init__.py` from a uniquely-named root all the way down (`service/__init__.py` + `service/tests/__init__.py` → `service.tests.test_utils`), not just in the `tests/` directory. Per-directory `conftest.py` files with the same filename are normal, supported pytest design and are not what collides here.
+Three ways out, pick one per repository: globally-unique test module filenames (naming modules after what they test — `test_billing_rounding.py`, not a third `test_utils.py` — does this as a side effect and reads better in failure output); `--import-mode=importlib`, recommended for new projects, with the caveat that test modules then can't import *each other* by bare name; or full package chains — `__init__.py` from a uniquely-named root all the way down (`service/__init__.py` + `service/tests/__init__.py` → `service.tests.test_utils`), not just in the `tests/` directory.
+
+**Scope:** per-directory `conftest.py` files with the same filename are normal, supported pytest design and are not what collides here.
 
 ### 5.2 Make the Plugin Surface Explicit When Autoload Bites
 
@@ -522,7 +524,9 @@ testpaths = ["tests"]
 addopts = "-p no:observability_sdk"       # decision recorded next to the config it affects
 ```
 
-Diagnose with `pytest --trace-config` (lists every active plugin) or compare a run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` plus explicit `-p` flags for the plugins the suite actually uses — the allowlist form, which makes the whole surface declared rather than inherited. Symptoms that warrant the audit: collection noticeably slower than test time, retries or telemetry no config requested, tests behaving differently on one machine. Plugins the suite genuinely depends on belong in dev dependencies by name; leaving autoload alone in the absence of symptoms is a fine default, not a violation.
+Diagnose with `pytest --trace-config` (lists every active plugin) or compare a run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` plus explicit `-p` flags for the plugins the suite actually uses — the allowlist form, which makes the whole surface declared rather than inherited. Symptoms that warrant the audit: collection noticeably slower than test time, retries or telemetry no config requested, tests behaving differently on one machine. Plugins the suite genuinely depends on belong in dev dependencies by name.
+
+**Keep autoload when quiet:** leaving autoload alone in the absence of symptoms is a fine default, not a violation.
 
 ### 5.3 Parametrize Contract-Distinct Partitions
 
@@ -565,7 +569,7 @@ def test_set_limit_rejects_negative():
         set_limit(-1)
 ```
 
-`id=` names make a failing case self-describing in the report. When case lists are generated, guard the degenerate outcome: an accidentally-empty parameter set skips silently by default — set `empty_parameter_set_mark = fail_at_collect` so a filter bug that produces zero cases fails collection instead of green-lighting nothing.
+`id=` names make a failing case self-describing in the report. When case lists are generated *and a nonempty set is contractual*, guard the degenerate outcome: an accidentally-empty parameter set skips silently by default — `empty_parameter_set_mark = fail_at_collect` makes a filter bug that produces zero cases fail collection instead of green-lighting nothing. Keep the default where an empty matrix is a legitimate outcome (a platform or feature matrix that can genuinely be empty on some targets).
 
 **When a plain loop beats parametrize:** cases that share one expensive setup, or assertions that accumulate across cases, read better as a single test iterating a local table. Parametrize's payoff is per-case isolation, selection, and ids; when none of that is needed, the decorator is ceremony.
 

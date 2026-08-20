@@ -14,6 +14,8 @@ Guidelines for writing and reviewing asyncio code. 5 rules in 1 category, priori
 
 A rule match is a signal, not a verdict. These failures typically pass single-request smoke tests and surface under load — weigh the rule against the code's real concurrency profile.
 
+Quick-reference lines are triggers, not licenses: before applying a rule as a review finding or a transformation, open the rule file and check its counter-signal — the marker-opened paragraph (`**When ...**` / `**Scope:**` / `**Keep ...**`) saying when NOT to apply it.
+
 ## When to Apply
 
 - Writing or reviewing `async def` code, task spawning, or streaming consumers

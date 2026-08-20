@@ -110,6 +110,8 @@ The same applies to explicitly held iterators: code that obtains an `AsyncIterat
 
 An event loop runs one callback at a time. A synchronous call inside `async def` — `time.sleep`, a sync HTTP client, a big `pickle.loads`, file I/O on a slow disk — freezes *every* task on the loop until it returns: heartbeats stop, timeouts can't fire, concurrent requests queue behind it. The single-request smoke test passes; the incident happens under load.
 
+**Scope:** A microseconds-cheap synchronous call — a dictionary lookup or small pure computation — is not "blocking"; this rule targets I/O, sleeps, and real CPU work.
+
 **Incorrect (sync work on the loop):**
 
 ```python
@@ -172,15 +174,19 @@ async def handle_order(order: Order) -> None:
 self._pump = asyncio.create_task(self._pump_events(), name="event-pump")
 ...
 async def aclose(self) -> None:
+    owner = asyncio.current_task()
     self._pump.cancel()
     try:
         await self._pump                   # lets finally-cleanup finish; a pre-cancellation failure raises here
     except asyncio.CancelledError:
-        if not self._pump.cancelled():     # not the pump's cancellation — it's ours; keep propagating
-            raise
+        if owner is not None and owner.cancelling():
+            raise                          # the *owner* is being cancelled — propagate
+        if not self._pump.cancelled():
+            raise                          # unexpected cancellation from elsewhere
+        # otherwise: the pump acknowledged the cancellation we requested
 ```
 
-Awaiting after `cancel()` matters twice over: `cancel()` only *requests* cancellation, and the await both lets the task's `finally` blocks finish and surfaces a real exception if the task had already failed before the cancel. Draining with `gather(..., return_exceptions=True)` and ignoring the result silently discards exactly those failures — reserve that for tearing down many tasks whose errors are observed elsewhere (e.g. a done callback). For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.
+Awaiting after `cancel()` matters twice over: `cancel()` only *requests* cancellation, and the await both lets the task's `finally` blocks finish and surfaces a real exception if the task had already failed before the cancel. The child's final state cannot identify *whose* `CancelledError` you caught: cancelling the owner while it awaits the child **delegates** the cancel to the child, so the child ends `cancelled()` even when the exception belongs to the owner — hence the `owner.cancelling()` check (3.11+), which asks the task that actually caught it. Draining with `gather(..., return_exceptions=True)` and ignoring the result silently discards pre-cancellation failures — reserve that for tearing down many tasks whose errors are observed elsewhere (e.g. a done callback). For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.
 
 ### 1.5 Re-Raise Cancellation After Cleanup
 
@@ -226,7 +232,7 @@ for result in results:
 
 `gather(..., return_exceptions=True)` types each element as `T | BaseException` — check `isinstance(result, BaseException)` before using values, and route cancellations back into control flow instead of logging them as failures.
 
-**Cleanup under a pending cancellation:** the handler runs while the task is still being cancelled, so a second cancellation can interrupt any await inside it — keep cleanup brief and local, then `raise`. `await asyncio.shield(coro)` is *not* a must-complete guarantee: it protects the inner work from the outer cancellation, but the awaiting line still raises, and the detached work then needs an owner holding its reference (see `async-own-your-tasks`). Reserve owned-task shield/drain machinery for cleanup that genuinely cannot be interrupted; most cleanup should be short enough to just run inline. **Framework caveat:** the `BaseException` guarantee is stdlib-only — some frameworks deliver cooperative cancellation as `Exception` subclasses, so check the hierarchy before assuming `except Exception:` is cancellation-safe there. For broad-catch hygiene generally, see `error-specific-exceptions` in python-best-practices.
+**Keep cleanup brief:** the handler runs while the task is still being cancelled, so a second cancellation can interrupt any await inside it — keep cleanup brief and local, then `raise`. `await asyncio.shield(coro)` is *not* a must-complete guarantee: it protects the inner work from the outer cancellation, but the awaiting line still raises, and the detached work then needs an owner holding its reference (see `async-own-your-tasks`). Reserve owned-task shield/drain machinery for cleanup that genuinely cannot be interrupted; most cleanup should be short enough to just run inline. **Framework caveat:** the `BaseException` guarantee is stdlib-only — some frameworks deliver cooperative cancellation as `Exception` subclasses, so check the hierarchy before assuming `except Exception:` is cancellation-safe there. For broad-catch hygiene generally, see `error-specific-exceptions` in python-best-practices.
 
 
 ## References

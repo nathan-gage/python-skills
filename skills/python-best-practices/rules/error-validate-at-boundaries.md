@@ -61,6 +61,6 @@ One validation point. Internal code takes `OrderId` (a branded `NewType`) and tr
 - Message queue consumers
 - Foreign API responses
 
-**Heuristic:** data at a boundary is untrusted. Validate it into a typed model (Pydantic, dataclass with a validator, `NewType` + explicit check). Once validated, the typed model flows through internal code unchecked.
+**Scope:** Data at a boundary is untrusted. Validate it into a typed model (Pydantic, dataclass with a validator, `NewType` + explicit check). Once validated, the typed model flows through internal code unchecked.
 
 **Fail fast:** validate before expensive operations. Don't read a 10MB file, parse it, and *then* reject it for missing a required field — check the field first.

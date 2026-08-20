@@ -36,4 +36,6 @@ def create_user(config: UserConfig) -> User:
     return User(name=config["name"].upper(), age=config.get("age", 0))
 ```
 
-For in-memory values with behavior and defaults, prefer a `dataclass`; when you also need runtime validation, `pydantic.BaseModel`. `dict[str, Any]` is the right answer only for genuinely unstructured data — log context, free-form metadata. If you know the fields, declare them.
+For in-memory values with behavior and defaults, prefer a `dataclass`; when you also need runtime validation, `pydantic.BaseModel`.
+
+**When `dict[str, Any]` is the right answer:** only for genuinely unstructured data — log context, free-form metadata. If you know the fields, declare them.

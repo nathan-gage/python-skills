@@ -42,4 +42,4 @@ def __getattr__(name: str):
 
 A deferred import inside the factory function that needs it achieves the same without `__getattr__`: a dispatch function that imports its integration in the matching branch keeps the optional dependency out of the import graph until that branch runs (one of the documented exceptions in `imports-top-of-file`). Type checkers resolve lazy attributes via a `TYPE_CHECKING` import block or a `.pyi` stub.
 
-Re-exporting the public API from `__init__.py` is a fine, mainstream pattern; the failure mode is *heavy or optional* imports riding along with it. Related: `imports-no-side-effects` covers work at import time; this rule covers import *fan-out* — both decide what `import pkg` costs.
+**Scope:** Re-exporting the public API from `__init__.py` is a fine, mainstream pattern; the failure mode is *heavy or optional* imports riding along with it. Related: `imports-no-side-effects` covers work at import time; this rule covers import *fan-out* — both decide what `import pkg` costs.

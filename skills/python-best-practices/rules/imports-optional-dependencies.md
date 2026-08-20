@@ -43,4 +43,4 @@ class AnthropicProvider:
 
 `ModuleNotFoundError.name` identifies *which* module was missing — a transitive import failing inside an installed `anthropic` should propagate as itself, not as "please install anthropic."
 
-If the dep is optional at the *feature* level rather than the *module* level, defer the import into the function that needs it — users who never call it never pay the cost. Pair module-scope optional imports with a `TYPE_CHECKING` block (see `types-type-checking-imports`) when type hints should resolve without requiring the runtime dep.
+**When the dependency is optional at the feature level rather than the module level:** defer the import into the function that needs it — users who never call it never pay the cost. Pair module-scope optional imports with a `TYPE_CHECKING` block (see `types-type-checking-imports`) when type hints should resolve without requiring the runtime dep.

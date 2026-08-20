@@ -27,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from counter_signals import MEDIUM_PLUS_IMPACTS, has_counter_signal
+from counter_signals import has_counter_signal
 
 VALID_IMPACTS: frozenset[str] = frozenset(
     {"CRITICAL", "HIGH", "MEDIUM-HIGH", "MEDIUM", "LOW-MEDIUM", "LOW"}
@@ -167,10 +167,11 @@ def validate_rule(
             f"body mentions {trigger!r} (version/library) but `references` is missing"
         )
 
-    if impact in MEDIUM_PLUS_IMPACTS and not has_counter_signal(body):
+    if not has_counter_signal(body):
         issue.issues.append(
-            "impact MEDIUM+ but no counter-signal prose "
-            "(a passage saying when NOT to apply the rule / what to preserve)"
+            "no counter-signal paragraph (a standalone paragraph opening with a "
+            "marker like **When ...** / **Scope:** / **Preserve ...** that says "
+            "when NOT to apply the rule)"
         )
 
     return issue

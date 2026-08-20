@@ -280,3 +280,70 @@ def test_absorbed_cancellation_defeats_timeout():
         assert result == "absorbed"               # block exits normally; no TimeoutError anywhere
 
     asyncio.run(main())
+
+
+def test_shutdown_drain_preserves_owner_cancellation():
+    """async-own-your-tasks: cancelling the owner while it drains a cancelled child *delegates*
+    the cancel to the child, so child.cancelled() is True even though the CancelledError belongs
+    to the owner — the aclose example must consult owner.cancelling() and re-raise.
+    """
+
+    async def main() -> None:
+        pump_started = asyncio.Event()
+        cleanup_entered = asyncio.Event()
+
+        async def pump_events() -> None:
+            pump_started.set()
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                cleanup_entered.set()
+                await asyncio.sleep(60)   # cleanup parks so the owner can be cancelled mid-drain
+
+        async def do_aclose(pump: asyncio.Task[None]) -> None:
+            owner = asyncio.current_task()
+            pump.cancel()
+            try:
+                await pump
+            except asyncio.CancelledError:
+                if owner is not None and owner.cancelling():
+                    raise                  # the owner itself is being cancelled
+                if not pump.cancelled():
+                    raise
+
+        pump = asyncio.create_task(pump_events())
+        await pump_started.wait()
+        closer = asyncio.create_task(do_aclose(pump))
+        await cleanup_entered.wait()       # closer is parked on `await pump`; pump parked in cleanup
+        closer.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await closer
+        assert closer.cancelled()          # the owner's cancellation propagated
+        assert pump.cancelled()            # even though the delegated cancel landed on the pump too
+
+    asyncio.run(main())
+
+
+def test_shutdown_drain_surfaces_pre_cancellation_failure():
+    """async-own-your-tasks: "the await ... surfaces a real exception if the task had already
+    failed before the cancel" — the drain must not discard it.
+    """
+
+    async def main() -> None:
+        async def pump_events() -> None:
+            raise ValueError("pump broke before shutdown")
+
+        pump = asyncio.create_task(pump_events())
+        await asyncio.sleep(0)             # pump fails before anyone cancels it
+        owner = asyncio.current_task()
+        pump.cancel()                      # no-op on a finished task
+        with pytest.raises(ValueError, match="pump broke"):
+            try:
+                await pump
+            except asyncio.CancelledError:
+                if owner is not None and owner.cancelling():
+                    raise
+                if not pump.cancelled():
+                    raise
+
+    asyncio.run(main())

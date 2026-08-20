@@ -14,6 +14,8 @@ Guidelines for writing and reviewing Python. 75 rules across 8 categories, prior
 
 A rule match is a signal, not a verdict. Most rules are design preferences for new code, not bugs to fix across the repo — check the rule's impact level before flagging in review or refactoring stable code.
 
+Quick-reference lines are triggers, not licenses: before applying a rule as a review finding or a transformation, open the rule file and check its counter-signal — the marker-opened paragraph (`**When ...**` / `**Scope:**` / `**Preserve ...**`) saying when NOT to apply it.
+
 ## When to Apply
 
 - Writing new Python modules, functions, classes, or data models
@@ -62,7 +64,7 @@ Section impact is a typical-case label; individual rules range one level above o
 
 - `data-mutable-defaults` — Never `def f(items=[])`; use `None` + body construction or `default_factory`
 - `data-derive-dont-store` — Compute booleans from state; don't cache flags that mirror each other
-- `data-mutation-contract` — Mutate OR return; not both
+- `data-mutation-contract` — One unambiguous contract per function: mutate (new-info returns fine) or return new — never the mutated object as if fresh
 - `data-aware-datetimes` — Timezone-aware `datetime.now(timezone.utc)`; `utcnow()` is deprecated
 - `data-discriminated-unions` — Tag variants instead of optional-field bags
 - `data-explicit-variants` — Concrete classes per mode beat `is_thread` / `is_edit` flags

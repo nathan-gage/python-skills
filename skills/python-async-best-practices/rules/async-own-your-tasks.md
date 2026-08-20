@@ -3,7 +3,7 @@ title: Every Task Needs an Owner
 impact: HIGH
 impactDescription: orphan tasks die silently, leak, and outlive their callers
 tags: async, asyncio, tasks, structured-concurrency
-references: https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task, https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup
+references: https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task, https://docs.python.org/3/library/asyncio-task.html#asyncio.TaskGroup, https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancelling
 ---
 
 ## Every Task Needs an Owner
@@ -39,12 +39,16 @@ async def handle_order(order: Order) -> None:
 self._pump = asyncio.create_task(self._pump_events(), name="event-pump")
 ...
 async def aclose(self) -> None:
+    owner = asyncio.current_task()
     self._pump.cancel()
     try:
         await self._pump                   # lets finally-cleanup finish; a pre-cancellation failure raises here
     except asyncio.CancelledError:
-        if not self._pump.cancelled():     # not the pump's cancellation — it's ours; keep propagating
-            raise
+        if owner is not None and owner.cancelling():
+            raise                          # the *owner* is being cancelled — propagate
+        if not self._pump.cancelled():
+            raise                          # unexpected cancellation from elsewhere
+        # otherwise: the pump acknowledged the cancellation we requested
 ```
 
-Awaiting after `cancel()` matters twice over: `cancel()` only *requests* cancellation, and the await both lets the task's `finally` blocks finish and surfaces a real exception if the task had already failed before the cancel. Draining with `gather(..., return_exceptions=True)` and ignoring the result silently discards exactly those failures — reserve that for tearing down many tasks whose errors are observed elsewhere (e.g. a done callback). For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.
+Awaiting after `cancel()` matters twice over: `cancel()` only *requests* cancellation, and the await both lets the task's `finally` blocks finish and surfaces a real exception if the task had already failed before the cancel. The child's final state cannot identify *whose* `CancelledError` you caught: cancelling the owner while it awaits the child **delegates** the cancel to the child, so the child ends `cancelled()` even when the exception belongs to the owner — hence the `owner.cancelling()` check (3.11+), which asks the task that actually caught it. Draining with `gather(..., return_exceptions=True)` and ignoring the result silently discards pre-cancellation failures — reserve that for tearing down many tasks whose errors are observed elsewhere (e.g. a done callback). For a pool of short-lived background tasks, the docs-blessed variant is a strong-reference set — `tasks.add(task)` plus a done callback that discards the task and observes its exception. Naming fan-out tasks (`name=...`) pays off the first time a stack dump shows twelve anonymous `Task-17`s. On 3.11+, reach for `TaskGroup` first and treat bare `create_task` as the escape hatch for genuinely longer-lived work.

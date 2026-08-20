@@ -45,4 +45,6 @@ update_user("u1", nickname="bob")    # nickname set to "bob"
 
 Pydantic's PATCH pattern uses the same idea — `Field(default=UNSET)` + filtering `{k: v for k, v in model_dump().items() if v is not UNSET}` gives you "omitted field" vs. "explicit null."
 
-A private `_SENTINEL = object()` is fine for tiny internal cases — PEP 661 itself uses that idiom. Prefer a named sentinel class (as above) when the sentinel appears in signatures, reprs, logs, or tracebacks, since the `__repr__` makes debugging easier. PEP 661 proposes a standard `sentinel(...)` helper, but it is still Draft and has not shipped in the `typing` module; do not claim `typing.Sentinel` exists. And don't reach for sentinels when `None` already means "absent" — two-state `Optional` doesn't need them.
+A private `_SENTINEL = object()` is fine for tiny internal cases — PEP 661 itself uses that idiom. Prefer a named sentinel class (as above) when the sentinel appears in signatures, reprs, logs, or tracebacks, since the `__repr__` makes debugging easier. PEP 661 proposes a standard `sentinel(...)` helper, but it is still Draft and has not shipped in the `typing` module; do not claim `typing.Sentinel` exists.
+
+**When not to use a sentinel:** Don't reach for one when `None` already means "absent" — two-state `Optional` doesn't need it.

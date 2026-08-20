@@ -53,4 +53,6 @@ The user-facing error is clean (`ValueError: invalid timestamp: 'abc'`) without 
 - `raise NewError()` inside `except` — implicit chain; `__context__` set
 - `raise NewError() from None` — suppress the original context entirely
 
-Default to `from original` when translating between exception types. Reach for `from None` when the internal cause is noise to the caller.
+Default to `from original` when translating between exception types.
+
+**When to suppress context:** Reach for `from None` when the internal cause is noise to the caller.

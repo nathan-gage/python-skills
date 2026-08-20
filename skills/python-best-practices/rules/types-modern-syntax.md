@@ -34,4 +34,6 @@ def merge_tags(
 
 `ruff`'s `UP` (pyupgrade) rules rewrite these automatically — enable them so the style never regresses.
 
-**Version notes:** builtin generics are 3.9+ (PEP 585); `|` unions are 3.10+ (PEP 604). The `type X = ...` alias statement and `class Foo[T]:` generic syntax are 3.12+ (PEP 695) — on a 3.11 baseline, keep `TypeAlias` and `TypeVar` for those two jobs. When editing a file that consistently uses the legacy style, match it or convert the whole file — don't leave a mix.
+**Version notes:** builtin generics are 3.9+ (PEP 585); `|` unions are 3.10+ (PEP 604). The `type X = ...` alias statement and `class Foo[T]:` generic syntax are 3.12+ (PEP 695) — on a 3.11 baseline, keep `TypeAlias` and `TypeVar` for those two jobs.
+
+**When editing a file that consistently uses the legacy style:** match it or convert the whole file — don't leave a mix.

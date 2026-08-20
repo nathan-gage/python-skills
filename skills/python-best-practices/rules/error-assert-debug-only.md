@@ -37,4 +37,6 @@ def process_step(step: Step) -> Result:
     assert False, f"unhandled Step variant: {step!r}"  # debug-only
 ```
 
-If the input crosses a trust boundary (user input, external API, deserialized data), always use a real exception — `AssertionError` is a poor signal at a system boundary even when it does fire. For exhaustiveness checks specifically, `typing.assert_never` is sharper than `assert False` (see `error-assert-never-exhaustiveness`). Rule of thumb: if you can't articulate why losing the check under `-O` is acceptable, it shouldn't be an `assert`.
+If the input crosses a trust boundary (user input, external API, deserialized data), always use a real exception — `AssertionError` is a poor signal at a system boundary even when it does fire. For exhaustiveness checks specifically, `typing.assert_never` is sharper than `assert False` (see `error-assert-never-exhaustiveness`).
+
+**When `assert` is acceptable:** Use it only when losing the check under `-O` is acceptable because the condition is a debug-only internal invariant.

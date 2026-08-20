@@ -8,45 +8,20 @@ references: https://primary-source-1.example.com, https://primary-source-2.examp
 
 ## Rule Title Here
 
-Brief explanation — one or two sentences. Observational: describe the pattern and what it costs. Avoid "the impulse to avoid" or "the temptation of" framing.
+Brief explanation — one or two sentences. Observational, not prescriptive: describe the pattern and what it costs.
 
-**Incorrect:**
+**Incorrect ({what's wrong with this}):**
 
 ```python
 # Bad code example
 ```
 
-**Correct:**
+**Correct ({what's right about this}):**
 
 ```python
 # Good code example
 ```
 
-Optional one-paragraph note on nuance, edge cases, or version-specific behavior. Keep it short. Skip if the examples carry the point.
+Optional one-paragraph note with nuance, edge cases, or version notes.
 
----
-
-## Authoring notes
-
-Target body length: 20–40 lines. One Incorrect block, one Correct block, optional note. Cut enumerated "use X when / use Y when" taxonomies — let the example speak.
-
-### Impact
-
-- `CRITICAL` — prevents a real bug class (data corruption, swallowed cancellations, insecure defaults)
-- `HIGH` — meaningful correctness or maintainability win
-- `MEDIUM-HIGH` — noticeable improvement worth enforcing
-- `MEDIUM` — good practice; clarity or drift prevention
-- `LOW-MEDIUM` / `LOW` — style; opportunistic
-
-Reserve `CRITICAL` for bug classes you'd block a PR on. If in doubt, pick `MEDIUM`.
-
-### References
-
-`references` is required when the rule depends on:
-
-- A specific Python version
-- Stdlib behavior with versioned semantics
-- Third-party library behavior (Pydantic, mypy, ruff)
-- A PEP
-
-Link to primary sources. Blog posts drift; PEPs don't.
+**When NOT to apply:** every rule MUST end with at least one counter-signal — a standalone paragraph opening with an approved marker (`**When ...**`, `**Scope ...**`, `**Preserve ...**`, `**Exception ...**`, `**Keep ...**`, `**Caveat ...**`, `**Don't ...**`, `**Watch ...**`) that says when the existing code should be preserved. `validate.py` enforces its presence; `extract_tests.py` exports it as `counter_signals` for restraint-scoring evals. Let the examples carry the main point; the counter-signal carries the judgment.

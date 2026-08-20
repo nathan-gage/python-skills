@@ -63,6 +63,6 @@ def get_settings() -> Settings:
 
 `@cache` gives you "once per process" semantics without the "every import" cost.
 
-Fine at import time: pure-Python constants, `re.compile` for a static pattern, class and function definitions, stdlib imports, cheap registrations. Push out of import time: network/disk I/O, subprocess launches, large model loads, env-var reads that may fail, DB/queue connections, heavy third-party imports the module doesn't unconditionally use. If `uv run python -c "import yourpackage"` takes more than ~100 ms or hits the network, something at module scope should be deferred.
+**Scope:** Fine at import time: pure-Python constants, `re.compile` for a static pattern, class and function definitions, stdlib imports, cheap registrations. Push out of import time: network/disk I/O, subprocess launches, large model loads, env-var reads that may fail, DB/queue connections, heavy third-party imports the module doesn't unconditionally use. If `uv run python -c "import yourpackage"` takes more than ~100 ms or hits the network, something at module scope should be deferred.
 
 The settings-object variant is the most common in practice: a module-scope `Settings()` — hand-rolled or from a settings library — makes every importer (test collection, docs builds, unrelated CLIs) require a fully-populated environment, and the failure surfaces as a validation error blaming the importer rather than the missing variable. Construct settings at the composition boundary and inject them.

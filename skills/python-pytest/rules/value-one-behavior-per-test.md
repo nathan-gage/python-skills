@@ -39,4 +39,4 @@ def test_delete_removes_user():
     assert service.get(user.id) is None
 ```
 
-Multiple asserts are fine when they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs "and". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change — keeping them for test-count or coverage optics preserves numbers, not protection.
+**When multiple asserts are fine:** they describe one outcome (`status == 200` and body shape of the same response). The test is too big when its name needs "and". The inverse discipline: merge tests that assert the *same* contract twice, and delete tests obsoleted by a behavior change — keeping them for test-count or coverage optics preserves numbers, not protection.

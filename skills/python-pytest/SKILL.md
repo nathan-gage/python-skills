@@ -14,6 +14,8 @@ Guidelines for writing and reviewing pytest suites. 15 rules across 5 categories
 
 A rule match is a signal, not a verdict. Most rules are design preferences for new tests — check the rule's impact level before flagging in review or churning a stable suite.
 
+Quick-reference lines are triggers, not licenses: before applying a rule as a review finding or a transformation, open the rule file and check its counter-signal — the marker-opened paragraph (`**When ...**` / `**Scope:**` / `**Exception ...**`) saying when NOT to apply it.
+
 ## When to Apply
 
 - Writing new tests or fixtures
@@ -68,7 +70,7 @@ The unit of judgment is the *contract a test defends* — every rule here traces
 
 ### Structure & Execution (`structure-`)
 
-- `structure-parametrize-partitions` — Cases are contract-distinct partitions with independent expecteds; empty sets fail collection
+- `structure-parametrize-partitions` — Cases are contract-distinct partitions with independent expecteds; guard generated case sets
 - `structure-unique-module-names` — Collision-free test module import identities across composed suites
 - `structure-plugin-hygiene` — Autoload is a fine default; on observed plugin drift, make the surface explicit
 

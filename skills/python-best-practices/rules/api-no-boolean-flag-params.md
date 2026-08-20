@@ -39,4 +39,4 @@ export_report(rows, format="csv", compress=True)
 
 Adding a fourth format is a one-line change to the `Literal`; call sites read meaningfully. Use an `Enum` when modes carry behavior or constants (e.g. `CompressionLevel.BEST` with value `9`). Split into separate functions when bodies barely overlap and composition is orthogonal.
 
-A single keyword-only `bool` is still fine when the name clearly answers "what does `True` mean?" (`include_archived=True`, `strict=True`, `dry_run=True`) and the body is a small filter rather than two near-duplicate paths. Read call sites out loud: `export_report(rows, True, False)` fails; `export_report(rows, format="csv", compress=True)` passes.
+**When a boolean is fine:** A single keyword-only `bool` is acceptable when the name clearly answers "what does `True` mean?" (`include_archived=True`, `strict=True`, `dry_run=True`) and the body is a small filter rather than two near-duplicate paths. Read call sites out loud: `export_report(rows, True, False)` fails; `export_report(rows, format="csv", compress=True)` passes.

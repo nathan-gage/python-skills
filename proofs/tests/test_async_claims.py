@@ -234,3 +234,49 @@ def test_gather_return_exceptions_yields_cancellation_as_value():
         assert results[1] == "ok"  # interleaved with successes
 
     asyncio.run(main())
+
+
+def test_absorbed_cancellation_reports_success():
+    """async-preserve-cancellation: "Code that absorbs it doesn't crash — it completes: the task
+    reports success (task.cancelled() is False), half-done work looks finished."
+    """
+
+    async def main() -> None:
+        started = asyncio.Event()
+
+        async def stubborn() -> str:
+            started.set()
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                return "absorbed"                 # the claim under test
+            return "unreachable"
+
+        task = asyncio.create_task(stubborn())
+        await started.wait()
+        task.cancel()
+        result = await task                       # no CancelledError raised to the awaiter
+        assert result == "absorbed"
+        assert task.cancelled() is False          # the task does not count as cancelled
+
+    asyncio.run(main())
+
+
+def test_absorbed_cancellation_defeats_timeout():
+    """async-preserve-cancellation: "a surrounding asyncio.timeout expires without ever raising
+    TimeoutError — the deadline is silently lost."
+    """
+
+    async def stubborn() -> str:
+        try:
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            return "absorbed"
+        return "unreachable"
+
+    async def main() -> None:
+        async with asyncio.timeout(0.01):
+            result = await stubborn()             # deadline fires, cancellation absorbed
+        assert result == "absorbed"               # block exits normally; no TimeoutError anywhere
+
+    asyncio.run(main())

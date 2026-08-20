@@ -702,7 +702,7 @@ def handle_request(req: Request) -> Response:
         raise
 ```
 
-**Cancellation (asyncio):** on Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` — so `except Exception:` is cancellation-safe; do not flag it as "swallowing cancellation." If a bare `except:` or `except BaseException:` does intercept cancellation, clean up and re-raise. The full asyncio semantics — `gather(return_exceptions=True)` results, shielded cleanup, framework caveats — live in python-async-best-practices' `async-preserve-cancellation`.
+**Cancellation (asyncio):** on Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` — so `except Exception:` is cancellation-safe; do not flag it as "swallowing cancellation." If a bare `except:` or `except BaseException:` does intercept cancellation, clean up and re-raise. The full asyncio semantics — `gather(return_exceptions=True)` results, cleanup under a pending cancellation, framework caveats — live in python-async-best-practices' `async-preserve-cancellation`.
 
 For meaningful handling, create domain-specific exception types (`ToolTimeoutError(ToolExecutionError)`, etc.) so handlers match on failure mode rather than error text.
 

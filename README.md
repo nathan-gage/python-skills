@@ -18,7 +18,7 @@ Python software engineering guidelines derived from real PR review patterns. 75 
 
 **Categories covered (typical impact; individual rules may differ):**
 - Data Modeling (High) — mutable defaults, derive-don't-store, discriminated unions, explicit variants, timezone-aware datetimes
-- Error Handling (Medium-High) — specific exceptions, context managers, preserved cancellation, traceback-preserving logs
+- Error Handling (Medium-High) — specific exceptions, context managers, exception hierarchies, traceback-preserving logs
 - Type Safety (Medium-High) — precise types over `Any`, fix type errors rather than ignore, `isinstance` over `hasattr`
 - API Design (Medium) — keyword-only params, required-before-optional, no boolean-flag soup, private underscores
 - Code Simplification (Low-Medium) — comprehensions, early returns, Pythonic idioms
@@ -28,7 +28,7 @@ Python software engineering guidelines derived from real PR review patterns. 75 
 
 ### python-async-best-practices
 
-Async and concurrency best practices, split out so event-loop guidance stays delineated and independently installable. 4 rules: blocking calls, task ownership (TaskGroup, cancel-then-drain), bounded fan-out, async generator cleanup.
+Async and concurrency best practices, split out so event-loop guidance stays delineated and independently installable. 5 rules: blocking calls, task ownership (TaskGroup, cancel-then-drain), bounded fan-out, preserved cancellation, async generator cleanup.
 
 **Use when:**
 - Writing or reviewing `async def` code, task spawning, or streaming consumers

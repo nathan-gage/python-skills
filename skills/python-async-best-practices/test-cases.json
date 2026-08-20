@@ -1,6 +1,6 @@
 {
   "generated_by": "src/extract_tests.py",
-  "count": 4,
+  "count": 5,
   "cases": [
     {
       "rule": "async-bound-concurrency",
@@ -57,6 +57,20 @@
       "incorrect": "async def handle_order(order: Order) -> None:\n    asyncio.create_task(notify_warehouse(order))   # may be GC'd; errors surface at GC time\n    results = await asyncio.gather(                # charge fails \u2192 refund keeps running, unowned\n        charge_card(order),\n        reserve_stock(order),\n    )",
       "correct": "async def handle_order(order: Order) -> None:\n    async with asyncio.TaskGroup() as tg:\n        tg.create_task(notify_warehouse(order))\n        tg.create_task(charge_card(order))\n        tg.create_task(reserve_stock(order))",
       "explanation": "A task someone spawns and nobody awaits has three failure modes. The event loop keeps only a weak reference, so a fire-and-forget task can be garbage-collected mid-flight (the `create_task` docs warn about exactly this). Its exception is reported only when the task is collected \u2014 \"Task exception was never retrieved,\" long after the cause. And when the spawning code errors out, the task keeps running against torn-down state. `asyncio.gather` has the same orphan problem on failure: the first exception propagates while sibling coroutines keep running unsupervised."
+    },
+    {
+      "rule": "async-preserve-cancellation",
+      "title": "Re-Raise Cancellation After Cleanup",
+      "impact": "HIGH",
+      "tags": [
+        "async",
+        "cancellation",
+        "asyncio",
+        "cleanup"
+      ],
+      "incorrect": "async def run_job(job: Job) -> Result | None:\n    try:\n        return await execute(job)\n    except BaseException:\n        logger.exception(\"job failed\")            # cancellation logged as a failure...\n        return None                               # ...and swallowed \u2014 the canceller hangs\n\nresults = await asyncio.gather(*tasks, return_exceptions=True)\nfailures = [r for r in results if isinstance(r, Exception)]   # CancelledError is BaseException \u2014 invisible here",
+      "correct": "async def run_job(job: Job) -> Result | None:\n    try:\n        return await execute(job)\n    except asyncio.CancelledError:\n        await asyncio.shield(release_lease(job))  # must-complete cleanup, kept short\n        raise                                     # cancellation keeps propagating\n    except Exception:\n        logger.exception(\"job failed\")\n        return None\n\nresults = await asyncio.gather(*tasks, return_exceptions=True)\nfor result in results:\n    if isinstance(result, asyncio.CancelledError):\n        raise result                              # a cancellation is not a result\n    if isinstance(result, BaseException):\n        logger.error(\"task failed: %r\", result)",
+      "explanation": "Cancellation is control flow, not failure. `task.cancel()` delivers `asyncio.CancelledError` at the task's current await, and everything above \u2014 `asyncio.timeout`, `TaskGroup`, the caller awaiting the task \u2014 relies on that exception propagating back out. A handler that swallows it reports the task as completed: the canceller waits forever, shutdown hangs, timeouts stop timing out. On 3.8+ `CancelledError` subclasses `BaseException` precisely so `except Exception:` can't swallow it by accident; the remaining hazards are broad `BaseException` catches and results collected as values."
     }
   ]
 }

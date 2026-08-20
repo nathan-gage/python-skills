@@ -43,8 +43,6 @@ def handle_request(req: Request) -> Response:
         raise
 ```
 
-**Cancellation semantics (asyncio / anyio):** On Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception`. So `except Exception:` is cancellation-safe — do not flag it as "swallowing cancellation." Only `except BaseException:` (or bare `except:`) catches cancellation. If you do catch `BaseException` or `anyio.get_cancelled_exc_class()`, re-raise. Wrap must-complete cleanup in `asyncio.shield()` — under cancellation, `finally:` blocks race against the cancellation itself.
-
-Two more cancellation edges: with `asyncio.gather(..., return_exceptions=True)`, each result is `T | BaseException` — cancellations and other `BaseException`s come back *as values* interleaved with successes, so check `isinstance(result, BaseException)` before using a value, and re-raise cancellations instead of logging them as failures. And the MRO rule is stdlib-only: some frameworks deliver their own cooperative-cancellation exceptions as `Exception` subclasses, so a broad `except Exception:` inside such a framework can still swallow a cancellation — check the hierarchy before assuming.
+**Cancellation (asyncio):** on Python 3.8+, `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` — so `except Exception:` is cancellation-safe; do not flag it as "swallowing cancellation." If a bare `except:` or `except BaseException:` does intercept cancellation, clean up and re-raise. The full asyncio semantics — `gather(return_exceptions=True)` results, shielded cleanup, framework caveats — live in python-async-best-practices' `async-preserve-cancellation`.
 
 For meaningful handling, create domain-specific exception types (`ToolTimeoutError(ToolExecutionError)`, etc.) so handlers match on failure mode rather than error text.

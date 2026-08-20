@@ -197,3 +197,40 @@ def test_aclose_throws_generatorexit_at_current_yield():
 
     asyncio.run(main())
     assert events == ["generatorexit-at-yield"]
+
+
+def test_cancellederror_is_not_exception():
+    """async-preserve-cancellation: "On 3.8+ CancelledError subclasses BaseException precisely so
+    except Exception: can't swallow it by accident."
+    """
+    assert not issubclass(asyncio.CancelledError, Exception)
+    assert issubclass(asyncio.CancelledError, BaseException)
+
+
+def test_gather_return_exceptions_yields_cancellation_as_value():
+    """async-preserve-cancellation: "gather(..., return_exceptions=True) types each element as
+    T | BaseException" — a cancelled child comes back as a CancelledError value interleaved with
+    successes, invisible to an isinstance(r, Exception) filter.
+    """
+
+    async def main() -> None:
+        started = asyncio.Event()
+
+        async def victim() -> str:
+            started.set()
+            await asyncio.sleep(60)
+            return "unreachable"
+
+        async def succeeds() -> str:
+            return "ok"
+
+        task = asyncio.create_task(victim())
+        gathered = asyncio.gather(task, succeeds(), return_exceptions=True)
+        await started.wait()
+        task.cancel()
+        results = await gathered
+        assert isinstance(results[0], asyncio.CancelledError)  # cancellation as a value
+        assert not isinstance(results[0], Exception)  # an Exception filter misses it
+        assert results[1] == "ok"  # interleaved with successes
+
+    asyncio.run(main())

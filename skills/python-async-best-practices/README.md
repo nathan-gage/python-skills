@@ -49,4 +49,4 @@ uv run src/extract_tests.py    # generate test-cases.json for LLM evals
 
 ## Relationship to python-best-practices
 
-`python-best-practices` covers production Python generally; this skill owns the event-loop discipline. Cancellation semantics for `except` clauses (`CancelledError` MRO, `gather(return_exceptions=True)`, shielded cleanup) live in its `error-specific-exceptions` rule. Cross-references between skills are by rule id.
+`python-best-practices` covers production Python generally; this skill owns the event-loop discipline, including asyncio cancellation semantics (`async-preserve-cancellation`). Its `error-specific-exceptions` rule covers broad-catch hygiene and points here for the asyncio depth. Cross-references between skills are by rule id.

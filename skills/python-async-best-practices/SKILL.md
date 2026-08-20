@@ -10,7 +10,7 @@ metadata:
 
 # Python Async Best Practices
 
-Guidelines for writing and reviewing asyncio code. 4 rules in 1 category, prioritized by impact.
+Guidelines for writing and reviewing asyncio code. 5 rules in 1 category, prioritized by impact.
 
 A rule match is a signal, not a verdict. These failures typically pass single-request smoke tests and surface under load — weigh the rule against the code's real concurrency profile.
 
@@ -39,10 +39,11 @@ A rule match is a signal, not a verdict. These failures typically pass single-re
 - `async-own-your-tasks` — `TaskGroup` by default; hold references and cancel-then-drain longer-lived tasks
 - `async-bound-concurrency` — Semaphore/queue bounds when fan-out scales with input size
 - `async-generator-cleanup` — `aclosing()` / explicit `aclose()` when leaving an async generator early
+- `async-preserve-cancellation` — Cancellation is control flow: cleanup, then re-raise; never a logged failure
 
 ## Related Skills
 
-- `python-best-practices` — production Python generally; its `error-specific-exceptions` rule carries the cancellation semantics for `except` clauses (`CancelledError` MRO, `gather(return_exceptions=True)`, shielded cleanup).
+- `python-best-practices` — production Python generally; its `error-specific-exceptions` rule covers broad-catch hygiene and points here for asyncio cancellation depth.
 - `python-pytest` — `determinism-sync-not-sleep` applies these ideas to concurrency *tests*.
 
 ## How to Use
